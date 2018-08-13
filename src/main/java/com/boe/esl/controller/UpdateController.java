@@ -6,10 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boe.esl.model.Goods;
 import com.boe.esl.model.Label;
+import com.boe.esl.model.Message;
 import com.boe.esl.model.Update;
 import com.boe.esl.service.GoodsService;
 import com.boe.esl.service.UpdateService;
@@ -25,7 +28,6 @@ public class UpdateController {
 	
 	@Autowired
 	private GoodsService goodsService;
-
 	
 	private UpdateVO convertPOJO(Update update) {
 		UpdateVO updateVO = new UpdateVO();
@@ -46,6 +48,12 @@ public class UpdateController {
 		updateVO.setUpdateTime(formattedDate);
 		
 		return updateVO;
+	}
+	
+	@MessageMapping("/sendMessage")
+	@SendTo("/topic/public")
+	public Message sendMessage(Message message) {
+		return message;
 	}
 	
 	private Update convertVO(UpdateVO updateVO) {
