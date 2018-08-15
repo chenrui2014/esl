@@ -6,14 +6,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.messaging.handler.annotation.MessageMapping;
+//import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boe.esl.model.Goods;
 import com.boe.esl.model.Label;
+import com.boe.esl.model.Message;
 import com.boe.esl.model.Update;
 import com.boe.esl.service.GoodsService;
 import com.boe.esl.service.UpdateService;
 import com.boe.esl.vo.UpdateVO;
+import com.boe.esl.websocketServer.MessageEventHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +30,16 @@ public class UpdateController {
 	
 	@Autowired
 	private GoodsService goodsService;
+	
+	@Autowired
+	private MessageEventHandler mEventHandler;
+	
+	@RequestMapping("/send")
+	public void sendMsg() {
+		log.info("开始推送消息");
+		Message message = new Message("hello");
+		mEventHandler.toAll(message);
+	}
 
 	
 	private UpdateVO convertPOJO(Update update) {
@@ -47,6 +62,12 @@ public class UpdateController {
 		
 		return updateVO;
 	}
+	
+//	@MessageMapping("/sendMessage")
+//	@SendTo("/topic/public")
+//	public Message sendMessage(Message message) {
+//		return message;
+//	}
 	
 	private Update convertVO(UpdateVO updateVO) {
 		Update update = new Update();
