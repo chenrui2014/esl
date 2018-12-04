@@ -1,68 +1,83 @@
 package com.boe.esl.service.impl;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
-
-import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.boe.esl.dao.BaseDao;
+import com.boe.esl.dao.GoodsDao;
+import com.boe.esl.dao.LabelDao;
 import com.boe.esl.model.Goods;
-import com.boe.esl.repository.GoodsRepository;
+import com.boe.esl.model.Label;
 import com.boe.esl.service.GoodsService;
+import com.boe.esl.vo.GoodsVO;
 
-@Service
 @Transactional
-public class GoodsServiceImpl implements GoodsService {
+@Service
+public class GoodsServiceImpl extends BaseServiceImpl<Goods, Long, GoodsVO> implements GoodsService {
 
 	@Autowired
-	private GoodsRepository goodsRepository;
+	private GoodsDao goodsDao;
+	
+	@Autowired
+	private LabelDao labelDao;
+
 	@Override
-	public List<Goods> findAll() {
-		Iterator<Goods> goodsIt = goodsRepository.findAll().iterator();
-		List<Goods> goodsList = new ArrayList<Goods>();
-		while (goodsIt.hasNext()) {
-			Goods goods = goodsIt.next();
-			goodsList.add(goods);
+	public GoodsVO convertEntity(Goods goods) {
+		GoodsVO goodsVO = new GoodsVO();
+		goodsVO.setId(goods.getId());
+		goodsVO.setName(goods.getName());
+		Label label = goods.getLabel();
+		if(label != null) {
+			goodsVO.setLabelId(label.getId());
+			goodsVO.setLabelName(label.getName());
+			goodsVO.setLabelMac(label.getMac());
 		}
-		return goodsList;
+		goodsVO.setPrice(goods.getPrice());
+		goodsVO.setUnit(goods.getUnit());
+		
+		return goodsVO;
 	}
 
 	@Override
-	public List<Goods> findAll(Sort sort) {
-		Iterator<Goods> goodsIt = goodsRepository.findAll(sort).iterator();
-		List<Goods> goodsList = new ArrayList<Goods>();
-		while (goodsIt.hasNext()) {
-			Goods goods = goodsIt.next();
-			goodsList.add(goods);
-		}
-		return goodsList;
+	public Goods convertVO(GoodsVO goodsVO) {
+		Goods goods = new Goods();
+		goods.setId(goodsVO.getId());
+		goods.setName(goodsVO.getName());
+		goods.setPrice(goodsVO.getPrice());
+		goods.setUnit(goodsVO.getUnit());
+		Label label = labelDao.findById(goodsVO.getLabelId()).orElse(null);
+		goods.setLabel(label);
+		return goods;
 	}
 
 	@Override
-	public Page<Goods> findAllPaging(Pageable pageable) {
-		return goodsRepository.findAll(pageable);
+	public List<GoodsVO> convertEntityList(List<Goods> goodsList) {
+		List<GoodsVO> goodsVOList = new ArrayList<GoodsVO>();
+		for (Goods goods : goodsList) {
+			GoodsVO goodsVO = convertEntity(goods);
+			goodsVOList.add(goodsVO);
+		}
+		return goodsVOList;
+	}
+
+	@Override
+	public List<Goods> convertVOList(List<GoodsVO> entityVOList) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	@Override
+	public BaseDao<Goods, Long> getDAO() {
+		return this.goodsDao;
 	}
 
 	@Override
 	public Goods findByLabelId(long labelId) {
-		return goodsRepository.findByLabel_IdOrderByNameDesc(labelId);
-	}
-
-	@Override
-	public Goods save(Goods goods) {
-		return goodsRepository.save(goods);
-	}
-
-	@Override
-	public Optional<Goods> findById(long id) {
-		return goodsRepository.findById(id);
+		return goodsDao.findByLabel_Id(labelId);
 	}
 
 }

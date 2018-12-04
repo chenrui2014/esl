@@ -1,0 +1,18 @@
+schema {
+  query:Query
+  mutation:Mutation
+}
+type Query {
+  findAllGateway: [Gateway]
+  findBydId(id: Long): Gateway
+}
+type Mutation {
+  newGateway(name: String, key: String, online: Boolean): Gateway
+}
+
+type Gateway {
+  id: Long
+  name: String
+  key: String
+  online: Boolean
+}

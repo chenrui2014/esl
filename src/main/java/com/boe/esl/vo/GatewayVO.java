@@ -1,21 +1,21 @@
 package com.boe.esl.vo;
 
-import java.io.Serializable;
-
 import lombok.Data;
 
 @Data
-public class GatewayVO implements Serializable {
+public class GatewayVO implements BaseVO {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 	
-	private long id;
+	private Long id;
 	private String name;
 	private String key;
-	private boolean online;
-	private String status;
+	private Short status;
+	private String statusText;
+	private String mac;
+	private String ip;
 
 }

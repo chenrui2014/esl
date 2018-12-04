@@ -1,73 +1,105 @@
 package com.boe.esl.service.impl;
 
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
-import javax.transaction.Transactional;
-
+import com.boe.esl.dao.LabelDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.boe.esl.dao.BaseDao;
+import com.boe.esl.dao.GoodsDao;
+import com.boe.esl.dao.UpdateDao;
+import com.boe.esl.model.Goods;
+import com.boe.esl.model.Label;
 import com.boe.esl.model.Update;
-import com.boe.esl.repository.UpdateRepository;
 import com.boe.esl.service.UpdateService;
+import com.boe.esl.vo.UpdateVO;
 
-@Service
 @Transactional
-public class UpdateServiceImpl implements UpdateService {
+@Service
+public class UpdateServiceImpl extends BaseServiceImpl<Update, Long, UpdateVO> implements UpdateService {
 
 	@Autowired
-	private UpdateRepository updateRepository;
+	private UpdateDao updateDao;
+	
+	@Autowired
+	private LabelDao labelDao;
+	
 	@Override
-	public List<Update> findAll() {
-		Iterator<Update> updateIt = updateRepository.findAll().iterator();
-		List<Update> updateList = new ArrayList<Update>();
-		while (updateIt.hasNext()) {
-			Update udpate = updateIt.next();
-			updateList.add(udpate);
+	public UpdateVO convertEntity(Update update) {
+		UpdateVO updateVO = new UpdateVO();
+		updateVO.setId(update.getId());
+		Label label = update.getLabel();
+		if(label != null) {
+			updateVO.setLabelId(label.getId());
+			updateVO.setLabelCode(label.getCode());
 		}
-		return updateList;
+		
+		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		String formattedDate = formatter.format(update.getUpdateTime());
+		updateVO.setUpdateTime(formattedDate);
+		update.setBarCode(updateVO.getBarCode());
+		update.setCustomJson(updateVO.getCustomJson());
+		update.setIsOk(updateVO.getIsOk());
+		update.setMaterialName(updateVO.getMaterialName());
+		update.setMaterialNum(updateVO.getMaterialNum());
+		update.setSid(updateVO.getSid());
+		return updateVO;
 	}
 
 	@Override
-	public List<Update> findAll(Sort sort) {
-		Iterator<Update> updateIt = updateRepository.findAll(sort).iterator();
-		List<Update> updateList = new ArrayList<Update>();
-		while (updateIt.hasNext()) {
-			Update udpate = updateIt.next();
-			updateList.add(udpate);
+	public Update convertVO(UpdateVO updateVO) {
+		Update update = new Update();
+		update.setId(updateVO.getId());
+		Timestamp ts = new Timestamp(System.currentTimeMillis()); 
+		try {   
+            ts = Timestamp.valueOf(updateVO.getUpdateTime());     
+        } catch (Exception e) {   
+            e.printStackTrace();   
+        } 
+		update.setUpdateTime(ts);
+		update.setBarCode(updateVO.getBarCode());
+		update.setCustomJson(updateVO.getCustomJson());
+		update.setIsOk(updateVO.getIsOk());
+		update.setMaterialName(updateVO.getMaterialName());
+		update.setMaterialNum(updateVO.getMaterialNum());
+		update.setSid(updateVO.getSid());
+
+		if(updateVO.getLabelId() != null){
+			Label label = labelDao.findById(updateVO.getLabelId()).orElse(null);
+			if(label != null){
+				update.setLabel(label);
+			}
 		}
-		return updateList;
+		return update;
 	}
 
 	@Override
-	public Page<Update> findAllPaging(Pageable pageable) {
-		return updateRepository.findAll(pageable);
+	public List<UpdateVO> convertEntityList(List<Update> updateList) {
+		List<UpdateVO> updateVOList = new ArrayList<UpdateVO>();
+		for (Update update : updateList) {
+			UpdateVO updateVO = convertEntity(update);
+			updateVOList.add(updateVO);
+		}
+		return updateVOList;
 	}
 
 	@Override
-	public Page<Update> findByLabelId(long labelId, Pageable pageable) {
-		return updateRepository.findByLabel_IdOrderById(labelId, pageable);
+	public List<Update> convertVOList(List<UpdateVO> userVOList) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
-	public List<Update> findByLabelIdNoPage(long labelId) {
-		return updateRepository.findByLabel_IdOrderById(labelId);
-	}
-
-	@Override
-	public Update save(Update update) {
-		return updateRepository.save(update);
-	}
-
-	@Override
-	public Optional<Update> findById(long id) {
-		return updateRepository.findById(id);
+	public BaseDao<Update, Long> getDAO() {
+		return this.updateDao;
 	}
 
 }

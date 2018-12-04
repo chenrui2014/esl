@@ -10,6 +10,7 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
 import com.boe.esl.model.Update;
 
+@Deprecated
 @RepositoryRestResource(collectionResourceRel="update", path="update")
 public interface UpdateRepository extends PagingAndSortingRepository<Update, Long> {
 

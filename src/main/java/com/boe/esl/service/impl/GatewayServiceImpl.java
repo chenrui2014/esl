@@ -1,63 +1,89 @@
 package com.boe.esl.service.impl;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 
-import javax.transaction.Transactional;
-
+import com.boe.esl.model.APStatus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.boe.esl.dao.BaseDao;
+import com.boe.esl.dao.GatewayDao;
 import com.boe.esl.model.Gateway;
-import com.boe.esl.repository.GatewayRepository;
 import com.boe.esl.service.GatewayService;
+import com.boe.esl.vo.GatewayVO;
 
-@Service
 @Transactional
-public class GatewayServiceImpl implements GatewayService {
+@Service
+public class GatewayServiceImpl extends BaseServiceImpl<Gateway, Long, GatewayVO> implements GatewayService {
 
 	@Autowired
-	private GatewayRepository gatewayRepository;
+	private GatewayDao gatewayDao;
+
 	@Override
-	public List<Gateway> findAll() {
-		Iterator<Gateway> gatewayIt = gatewayRepository.findAll().iterator();
-		List<Gateway> gatewayList = new ArrayList<Gateway>();
-		while (gatewayIt.hasNext()) {
-			Gateway gateway = gatewayIt.next();
-			gatewayList.add(gateway);
+	public GatewayVO convertEntity(Gateway gateway) {
+		GatewayVO gatewayVO = new GatewayVO();
+		gatewayVO.setId(gateway.getId());
+		gatewayVO.setKey(gateway.getKey());
+		gatewayVO.setName(gateway.getName());
+		gatewayVO.setIp(gateway.getIp());
+		gatewayVO.setMac(gateway.getMac());
+		gatewayVO.setStatus(gateway.getStatus());
+
+		int status = 0;
+		if (gateway.getStatus() != null) {
+			status = gateway.getStatus();
 		}
-		return gatewayList;
-	}
-
-	@Override
-	public List<Gateway> findALl(Sort sort) {
-		Iterator<Gateway> gatewayIt = gatewayRepository.findAll(sort).iterator();
-		List<Gateway> gatewayList = new ArrayList<Gateway>();
-		while (gatewayIt.hasNext()) {
-			Gateway income = gatewayIt.next();
-			gatewayList.add(income);
+		for(APStatus apStatus: APStatus.values()){
+			if(apStatus.getCode() == status){
+				gatewayVO.setStatusText(apStatus.getMsg());
+				break;
+			}
 		}
-		return gatewayList;
+		
+		return gatewayVO;
 	}
 
 	@Override
-	public Page<Gateway> findAllPaging(Pageable pageable) {
-		return gatewayRepository.findAll(pageable);
+	public Gateway convertVO(GatewayVO gatewayVO) {
+		Gateway gateway = new Gateway();
+		gateway.setId(gatewayVO.getId());
+		gateway.setKey(gatewayVO.getKey());
+		gateway.setName(gatewayVO.getName());
+		gateway.setIp(gatewayVO.getIp());
+		gateway.setMac(gatewayVO.getMac());
+		gateway.setStatus(gatewayVO.getStatus());
+		return gateway;
 	}
 
 	@Override
-	public Gateway save(Gateway gateway) {
-		return gatewayRepository.save(gateway);
+	public List<GatewayVO> convertEntityList(List<Gateway> gatewayList) {
+		List<GatewayVO> gatewayVOList = new ArrayList<GatewayVO>();
+		for (Gateway gateway : gatewayList) {
+			GatewayVO gatewayVO = convertEntity(gateway);
+			gatewayVOList.add(gatewayVO);
+		}
+		return gatewayVOList;
 	}
 
 	@Override
-	public Optional<Gateway> findById(long id) {
-		return gatewayRepository.findById(id);
+	public List<Gateway> convertVOList(List<GatewayVO> entityVOList) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public BaseDao<Gateway, Long> getDAO() {
+		return this.gatewayDao;
+	}
+
+	@Override
+	public Gateway findByNameAndKey(Gateway gateway) {
+		if(gateway != null) {
+			return gatewayDao.findByNameAndKey(gateway.getName(), gateway.getKey());
+		}
+		return null;
 	}
 
 }

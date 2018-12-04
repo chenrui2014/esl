@@ -1,6 +1,5 @@
 package com.boe.esl.model;
 
-import java.io.Serializable;
 import java.sql.Timestamp;
 
 import javax.persistence.Entity;
@@ -18,7 +17,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 @Entity(name="tb_update")
-public class Update implements Serializable {
+public class Update implements BaseModel<Long> {
 
 	/**
 	 * 
@@ -26,9 +25,14 @@ public class Update implements Serializable {
 	private static final long serialVersionUID = 1L;
 	@Id
 	@GeneratedValue(strategy=GenerationType.AUTO)
-	private long id;
-	private Timestamp time;
-	private short status;
+	private Long id;
+	private Timestamp updateTime;//更新时间
+	private Boolean isOk;
+	private String sid;
+	private String barCode;
+	private String materialName;
+	private String materialNum;
+	private String customJson;
 
 	@ManyToOne
 	@JoinColumn(name="labelId")

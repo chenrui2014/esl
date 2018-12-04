@@ -1,11 +1,9 @@
 package com.boe.esl.vo;
 
-import java.io.Serializable;
-
 import lombok.Data;
 
 @Data
-public class GoodsVO implements Serializable {
+public class GoodsVO implements BaseVO {
 
 	/**
 	 * 

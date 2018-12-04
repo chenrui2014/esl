@@ -10,9 +10,11 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
 import com.boe.esl.model.Label;
 
+@Deprecated
 @RepositoryRestResource(collectionResourceRel="label", path="label")
 public interface LabelRepository extends PagingAndSortingRepository<Label, Long> {
 
 	List<Label> findByGateway_IdOrderByNameDesc(@Param("gatewayId")long gatewayId);
 	Page<Label> findByGateway_IdOrderByNameDesc(@Param("gatewayId")long gatewayId,Pageable pageable);
+	Label findByMac(String mac);
 }
