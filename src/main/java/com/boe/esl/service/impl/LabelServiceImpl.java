@@ -94,4 +94,12 @@ public class LabelServiceImpl extends BaseServiceImpl<Label, Long, LabelVO> impl
 		return this.labelDao;
 	}
 
+	@Override
+	public Label getLabelByCode(String code) {
+		Label label = labelDao.findByCode(code);
+		if(label != null){
+			return label;
+		}
+		return null;
+	}
 }

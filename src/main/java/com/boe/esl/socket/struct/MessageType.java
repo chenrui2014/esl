@@ -33,7 +33,7 @@ public enum MessageType {
 	/**
 	 * 控制命令
 	 */
-	 CONTROLLE((byte)0x06),
+	 CONTROL((byte)0x06),
 	/**
 	 * 显示更新
 	 */

@@ -51,4 +51,6 @@ public class NettyConstant {
 	 * +-------+
 	 */
 	public static final int RESP_REGISTER_BASE_LENGTH = 1;
+
+	public static final int REQ_UPDATE_LENGTH = 48;
 }

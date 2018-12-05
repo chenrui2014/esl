@@ -1,22 +1,16 @@
 package com.boe.esl.websocketServer;
 
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PreDestroy;
 
+import com.boe.esl.model.*;
+import com.boe.esl.socket.struct.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import com.boe.esl.model.Gateway;
-import com.boe.esl.model.Goods;
-import com.boe.esl.model.Label;
-import com.boe.esl.model.Message;
-import com.boe.esl.service.GatewayService;
-import com.boe.esl.service.GoodsService;
 import com.boe.esl.service.LabelService;
 import com.boe.esl.socket.ESLSocketUtils;
 import com.boe.esl.socket.NettyConstant;
@@ -24,7 +18,6 @@ import com.boe.esl.socket.ServerHandler;
 import com.boe.esl.socket.struct.ESLHeader;
 import com.boe.esl.socket.struct.ESLMessage;
 import com.boe.esl.socket.struct.HeaderType;
-import com.boe.esl.socket.struct.MessageType;
 import com.boe.esl.utils.JsonConverter;
 import com.boe.esl.vo.OperatorVO;
 import com.boe.esl.vo.UpdateVO;
@@ -60,12 +53,6 @@ public class MessageEventHandler {
 	private LabelService labelService;
 
 	@Autowired
-	private GoodsService goodsService;
-
-	@Autowired
-	private GatewayService gatewayService;
-
-	@Autowired
 	@Qualifier("serverHandler")
 	private ServerHandler serverHandler;
 
@@ -93,60 +80,57 @@ public class MessageEventHandler {
 		client.disconnect();
 	}
 
-	@OnEvent(value = "sendBoard")
-	public void onBoardEvent(SocketIOClient client, AckRequest ackRequest, Message message) {
-		Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
-		Set<String> keySet = regChannelGroup.keySet();
-		Iterator<String> keyIt = keySet.iterator();
-		while (keyIt.hasNext()) {
-			String key = keyIt.next();
-			SocketChannel channel = regChannelGroup.get(key);
-			ESLMessage infoMsg = new ESLMessage();
-			ESLHeader header = new ESLHeader();
-			header.setCode(HeaderType.RESP);
-			header.setType(MessageType.LOGIN);
-			header.setLength((byte) 2);
-			infoMsg.setEslHeader(header);
-			byte[] content = new byte[2];
-			content[0] = (byte)message.getBoardId();
-			content[1] = Byte.parseByte(message.getBody());
-			infoMsg.setContent(content);
-			channel.writeAndFlush(infoMsg);
-
+	@OnEvent(value = "sendControl")
+	public void onControlEvent(SocketIOClient client, AckRequest ackRequest, ControlMessage controlMessage) {
+		Label label = labelService.getLabelByCode(controlMessage.getLabelCode());
+		Gateway gateway = null;
+		if(label != null){
+			gateway = label.getGateway();
+			if(gateway != null){
+				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
+				SocketChannel ch = regChannelGroup.get(gateway.getKey());
+				ESLMessage controlMsg = new ESLMessage();
+				ESLHeader header = new ESLHeader();
+				header.setCode(HeaderType.REQ);
+				header.setType(MessageType.CONTROL);
+				byte[] content = new byte[1];
+				content[0] = 0x01;
+				controlMsg.setContent(content);
+				header.setLength((byte) content.length);
+				controlMsg.setEslHeader(header);
+				ch.writeAndFlush(controlMsg);
+			}else{
+				client.sendEvent("sendControl","该标签没有入网");
+			}
+		}else {
+			client.sendEvent("sendControl","没有找到对应的标签");
 		}
-		client.sendEvent("sendMessage", "server");
 	}
 
-	@OnEvent(value = "sendMessage")
-	public void onEvent(SocketIOClient client, AckRequest ackRequest, UpdateVO updatevo) {
-		log.info("接收客户端消息");
+	@OnEvent(value = "sendUpdate")
+	public void onUpdateEvent(SocketIOClient client, AckRequest ackRequest, UpdateVO updatevo) {
+		log.info("更新标签");
 		Label label = labelService.findById(updatevo.getLabelId());
-		if (label != null) {
-			Goods goods = goodsService.findByLabelId(label.getId());
-			Gateway gateway = label.getGateway();
-			if (gateway != null && goods != null) {
+		Gateway gateway = null;
+		if(label != null){
+			gateway = label.getGateway();
+			if(gateway != null){
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
-				Set<String> keySet = regChannelGroup.keySet();
-				Iterator<String> keyIt = keySet.iterator();
-				while (keyIt.hasNext()) {
-					String key = keyIt.next();
-					if (key.equals(gateway.getKey())) {
-						SocketChannel channel = regChannelGroup.get(key);
-						ESLMessage infoMsg = new ESLMessage();
-						ESLHeader header = new ESLHeader();
-						header.setCode(HeaderType.REQ);
-						header.setType(MessageType.INFO);
-						header.setLength((byte) NettyConstant.REQ_INFO_LENGTH);
-						infoMsg.setEslHeader(header);
-						infoMsg.setContent(ESLSocketUtils.convertGoodsToByte(goods).array());
-						channel.writeAndFlush(infoMsg);
-					}
-
-				}
+				SocketChannel ch = regChannelGroup.get(gateway.getKey());
+				ESLMessage controlMsg = new ESLMessage();
+				ESLHeader header = new ESLHeader();
+				header.setCode(HeaderType.REQ);
+				header.setType(MessageType.UPDATE);
+				controlMsg.setContent(ESLSocketUtils.convertUpdateToByte(updatevo).array());
+				header.setLength((byte) NettyConstant.REQ_UPDATE_LENGTH);
+				controlMsg.setEslHeader(header);
+				ch.writeAndFlush(controlMsg);
+			}else {
+				client.sendEvent("sendControl","该标签没有入网");
 			}
+		}else{
+			client.sendEvent("sendControl","没有找到对应的标签");
 		}
-
-		client.sendEvent("sendMessage", "server");
 
 	}
 
@@ -155,7 +139,17 @@ public class MessageEventHandler {
 		if (client != null) {
 			try {
 				client.sendEvent(eventName, updateVO);
-				System.out.println(JsonConverter.objectToJSONObject(updateVO));
+			} catch (Exception e) {
+				log.error("推送消息给{}的客户端异常", sessionId, e.getMessage());
+			}
+		}
+	}
+
+	public void toOne(String sessionId, String eventName, Label label) {
+		SocketIOClient client = clientMap.get(sessionId);
+		if (client != null) {
+			try {
+				client.sendEvent(eventName, label);
 			} catch (Exception e) {
 				log.error("推送消息给{}的客户端异常", sessionId, e.getMessage());
 			}
@@ -167,7 +161,6 @@ public class MessageEventHandler {
 		if (client != null) {
 			try {
 				client.sendEvent(eventName, message);
-				System.out.println(JsonConverter.objectToJSONObject(message));
 			} catch (Exception e) {
 				log.error("推送消息给{}的客户端异常", sessionId, e.getMessage());
 			}
@@ -177,6 +170,12 @@ public class MessageEventHandler {
 	public void toAll(UpdateVO updateVO) {
 		for (String sessionId : clientMap.keySet()) {
 			toOne(sessionId, "sendMessage", updateVO);
+		}
+	}
+
+	public void toAll(Label label) {
+		for (String sessionId : clientMap.keySet()) {
+			toOne(sessionId, "sendMessage", label);
 		}
 	}
 

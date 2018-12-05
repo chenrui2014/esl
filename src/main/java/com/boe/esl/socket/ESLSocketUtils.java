@@ -4,6 +4,7 @@ import com.boe.esl.model.Goods;
 import com.boe.esl.model.Label;
 import com.boe.esl.socket.struct.ResultStatus;
 
+import com.boe.esl.vo.UpdateVO;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,22 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ESLSocketUtils {
 
+
+	public static ByteBuf convertUpdateToByte(UpdateVO updateVO){
+		ByteBuf infoByte = Unpooled.buffer(NettyConstant.REQ_UPDATE_LENGTH);
+		byte[] updateBytes = new byte[NettyConstant.REQ_UPDATE_LENGTH];
+		try {
+			System.arraycopy(updateVO.getSid().getBytes(), 0, updateBytes, 0, updateVO.getSid().getBytes().length);
+			System.arraycopy(updateVO.getBarCode().getBytes(), 0, updateBytes, 6, updateVO.getBarCode().getBytes().length);
+			System.arraycopy(updateVO.getMaterialName().getBytes(), 0, updateBytes, 21, updateVO.getMaterialName().getBytes().length);
+			System.arraycopy(updateVO.getMaterialNum().getBytes(), 0, updateBytes, 36, updateVO.getMaterialNum().getBytes().length);
+		}catch (Exception e) {
+			log.error("字符编码转换错误", e.getMessage());
+		}
+
+		infoByte.writeBytes(updateBytes);
+		return infoByte;
+	}
 	/**
 	 * 将商品信息转换为ByteBuf
 	 * @Title convertLabelToByte
