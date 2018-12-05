@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.boe.esl.socket.struct.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -22,11 +23,6 @@ import com.boe.esl.service.BoardService;
 import com.boe.esl.service.GatewayService;
 import com.boe.esl.service.OperatorService;
 import com.boe.esl.service.UpdateService;
-import com.boe.esl.socket.struct.ESLHeader;
-import com.boe.esl.socket.struct.ESLMessage;
-import com.boe.esl.socket.struct.HeaderType;
-import com.boe.esl.socket.struct.MessageType;
-import com.boe.esl.socket.struct.ResultStatus;
 import com.boe.esl.websocketServer.MessageEventHandler;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -37,6 +33,8 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import lombok.extern.slf4j.Slf4j;
+
+import static com.boe.esl.socket.struct.DeviceType.*;
 
 @Slf4j
 @Component
@@ -73,42 +71,25 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 		ESLHeader header = eslMessage.getEslHeader();
 		if (header != null) {
 			switch (header.getType()) {
-			case REGISTER:
+			case REGISTER://注册
 				handleRegister((SocketChannel) ctx.channel(), eslMessage);
 				break;
-			case AWAKE:// 唤醒成功
-				byte[] content = eslMessage.getContent();
-				SocketChannel ch = (SocketChannel) ctx.channel();
-				if (content[0] == ResultStatus.OK.value()) {
-					Set<String> keySet = regChannelGroup.keySet();
-					Iterator<String> keyIt = keySet.iterator();
-					while (keyIt.hasNext()) {
-						String key = keyIt.next();
-						SocketChannel channel = regChannelGroup.get(key);
-						if (ch.equals(channel)) {
-							awaitChanellGroup.put(key, channel);
-						}
-					}
-					sendInfo();// 发送Info命令
-				}
+			case NETWORKING://组网
 				break;
-			case LOGIN:
-				handleLogin((SocketChannel) ctx.channel(), eslMessage);
+			case PONG://心跳
+				pong((SocketChannel) ctx.channel(), eslMessage);
 				break;
-			case INFO:
-				handleInfo((SocketChannel) ctx.channel(), eslMessage);
+			case NETWORK://新设备入网
+				network((SocketChannel) ctx.channel(), eslMessage);
 				break;
-			case UPDATE:
-				handleUpdate((SocketChannel) ctx.channel(), eslMessage);
+			case UPDATE://状态更新
+				update((SocketChannel) ctx.channel(), eslMessage);
 				break;
-			case CANCEL:
-				handleCancel((SocketChannel) ctx.channel(), eslMessage);
+			case CONTROLLE://控制命令
+				controlle((SocketChannel) ctx.channel(), eslMessage);
 				break;
-			case DONE:
-				handleDone((SocketChannel) ctx.channel(), eslMessage);
-				break;
-			case BOM:
-				handleBOM((SocketChannel) ctx.channel(), eslMessage);
+			case DISPLAY://显示更新
+				display((SocketChannel) ctx.channel(), eslMessage);
 				break;
 			default:
 				break;
@@ -146,7 +127,6 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 				ESLMessage eslMessage = new ESLMessage();
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
-				header.setType(MessageType.PING);
 				header.setLength((byte) 0);
 				eslMessage.setEslHeader(header);
 				eslMessage.setContent(new byte[0]);
@@ -168,198 +148,6 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 	public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
 		// TODO Auto-generated method stub
 		super.handlerRemoved(ctx);
-	}
-
-	/**
-	 * 发送info命令
-	 * 
-	 * @Title sendInfo
-	 * @Description TODO()
-	 * @params
-	 * @return void
-	 * @throws @create 2018年8月30日 上午11:07:19
-	 * @lastUpdate 2018年8月30日 上午11:07:19
-	 */
-	public void sendInfo() {
-		Set<String> keySet = updateGoods.keySet();
-		Iterator<String> keyIt = keySet.iterator();
-		while (keyIt.hasNext()) {
-			String key = keyIt.next();
-			List<Goods> value = updateGoods.get(key);
-			SocketChannel channel = regChannelGroup.get(key);
-			if (channel != null && value != null && value.size() > 0) {
-				for (Goods goods : value) {
-					ESLMessage infoMsg = new ESLMessage();
-					ESLHeader header = new ESLHeader();
-					header.setCode(HeaderType.REQ);
-					header.setType(MessageType.INFO);
-					header.setLength((byte) NettyConstant.REQ_INFO_LENGTH);
-					infoMsg.setEslHeader(header);
-					infoMsg.setContent(ESLSocketUtils.convertGoodsToByte(goods).array());
-					channel.writeAndFlush(infoMsg);
-				}
-
-				ESLMessage updateMsg = new ESLMessage();
-				ESLHeader header = new ESLHeader();
-				header.setCode(HeaderType.REQ);
-				header.setType(MessageType.UPDATE);
-				header.setLength((byte) 0);
-				updateMsg.setEslHeader(header);
-				updateMsg.setContent(new byte[0]);
-				channel.writeAndFlush(updateMsg);
-			}
-		}
-	}
-
-	public void handleUpdate(SocketChannel ch, ESLMessage eslMessage) {
-		byte[] content = eslMessage.getContent();
-		if (content != null && content.length >= 1 && content[0] == ResultStatus.OK.value()) {
-
-		}
-
-	}
-
-	/**
-	 * 处理info响应
-	 * 
-	 * @Title handleInfo
-	 * @Description TODO()
-	 * @params @param ch
-	 * @params @param eslMessage
-	 * @return void
-	 * @throws @create 2018年8月30日 上午11:07:37
-	 * @lastUpdate 2018年8月30日 上午11:07:37
-	 */
-	public void handleInfo(SocketChannel ch, ESLMessage eslMessage) {
-		byte[] content = eslMessage.getContent();
-		if (content != null && content.length >= 7 && content[0] == ResultStatus.OK.value()) {
-			byte[] macBytes = new byte[6];
-			System.arraycopy(content, 1, macBytes, 0, 6);
-			String mac = ESLSocketUtils.ByteArrayToMac(macBytes);
-			Set<String> keySet = regChannelGroup.keySet();
-			Iterator<String> keyIt = keySet.iterator();
-			while (keyIt.hasNext()) {
-				String key = keyIt.next();
-				SocketChannel channel = regChannelGroup.get(key);
-				if (channel != null && channel.equals(ch)) {
-					List<Goods> goodsList = updateGoods.get(key);
-					if (goodsList != null && goodsList.size() > 0) {
-						Iterator<Goods> iterator = goodsList.iterator();
-						while (iterator.hasNext()) {
-							Goods goods = iterator.next();
-							if (goods != null) {
-								Label label = goods.getLabel();
-								if (label != null && mac.equals(label.getMac())) {
-									// Message message = new Message(mac);
-									List<Update> updateList = label.getUpdates();
-									if (updateList != null && updateList.size() > 0) {
-										websocketHandler.toAll(updateService.convertEntity(updateList.get(0)));
-									}
-
-									goodsList.remove(goods);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	 * 处理login请求
-	 * 
-	 * @Title handleLogin
-	 * @Description TODO()
-	 * @params @param ch
-	 * @params @param eslMessage
-	 * @return void
-	 * @throws @create 2018年8月30日 上午11:07:53
-	 * @lastUpdate 2018年8月30日 上午11:07:53
-	 */
-	public void handleLogin(SocketChannel ch, ESLMessage eslMessage) {
-		byte[] content = eslMessage.getContent();
-		if (content.length >= 2) {
-			if (content.length == 2) {
-				int boarId = content[0];
-				int operatorId = content[1];
-				Operator operator = operatorService.findById((long) operatorId);
-				Board board = boardService.findById((long)boarId);
-				if (operator != null) {
-					Date date = new Date();
-					Timestamp now = new Timestamp(date.getTime());
-					operator.setLoginTime(now);
-					operator.setStatus((short) 1);
-					if (board != null) {
-						operator.setBoard(board);
-					}
-					Operator operator2 = null;
-					try {
-						operator2 = operatorService.save(operator);
-
-						if (operator2 != null) {
-							websocketHandler.toAllBoard(operatorService.convertEntity(operator2));
-						}
-
-					} catch (Exception e) {
-						log.error("保存操作员上线信息失败", e.getMessage());
-					}
-//				Operation operation = operator.getOperation();
-//				if (operation != null) {
-//					ESLMessage respMsg = new ESLMessage();
-//					ESLHeader header = new ESLHeader();
-//					header.setCode(HeaderType.RESP);
-//					long operationId = operation.getId();
-//					byte[] respCon = new byte[2];
-//					respCon[0] = (byte) labelId;
-//					respCon[1] = (byte) operationId;
-//					Message message = new Message();
-//					message.setBoardId(labelId);
-//					message.setBody(operationId + "");
-//					websocketHandler.toAllBoard(message);
-//					respMsg.setContent(respCon);
-//					header.setLength((byte) 2);
-//					header.setType(MessageType.LOGIN);
-//					respMsg.setEslHeader(header);
-//					//ch.writeAndFlush(respMsg);
-//				} else {
-//					ESLMessage errMsg = new ESLMessage();
-//					ESLHeader header = new ESLHeader();
-//					header.setCode(HeaderType.RESP);
-//					header.setType(MessageType.DONE);
-//					header.setLength((byte) 1);
-//					eslMessage.setEslHeader(header);
-//					byte[] cont = new byte[1];
-//					cont[0] = ResultStatus.SERVER_ERROR.value();
-//					eslMessage.setContent(cont);
-//					ch.writeAndFlush(errMsg);
-//				}
-				} else {
-					ESLMessage errMsg = new ESLMessage();
-					ESLHeader header = new ESLHeader();
-					header.setCode(HeaderType.RESP);
-					header.setType(MessageType.DONE);
-					header.setLength((byte) 1);
-					eslMessage.setEslHeader(header);
-					byte[] cont = new byte[1];
-					cont[0] = ResultStatus.SERVER_ERROR.value();
-					eslMessage.setContent(cont);
-					ch.writeAndFlush(errMsg);
-				}
-			}
-
-		} else {
-			ESLMessage errMsg = new ESLMessage();
-			ESLHeader header = new ESLHeader();
-			header.setCode(HeaderType.RESP);
-			header.setType(MessageType.DONE);
-			header.setLength((byte) 1);
-			eslMessage.setEslHeader(header);
-			byte[] cont = new byte[1];
-			cont[0] = ResultStatus.AP_ERROR.value();
-			eslMessage.setContent(cont);
-			ch.writeAndFlush(errMsg);
-		}
 	}
 
 	/**
@@ -413,72 +201,115 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 		}
 
 		channel.writeAndFlush(respMessage);
-		sendAwake(channel);
 	}
 
 	/**
-	 * 唤醒类消息
-	 * 
-	 * @Title awake
-	 * @Description TODO()
-	 * @params @return
-	 * @return ESLMessage
-	 * @throws @create 2018年8月24日 下午3:07:00
-	 * @lastUpdate 2018年8月24日 下午3:07:00
+	 * 组网
+	 * @param channel
 	 */
-	private void sendAwake(SocketChannel channel) {
-		ESLMessage awakeMsg = new ESLMessage();
+	private void networking(SocketChannel channel){
+		ESLMessage networkingMsg = new ESLMessage();
 		ESLHeader header = new ESLHeader();
-		byte[] content = new byte[0];
+		byte[] content = new byte[1];
+		content[0] = 0x01;//开始组网
 		header.setCode(HeaderType.REQ);
-		header.setType(MessageType.AWAKE);
+		header.setType(MessageType.NETWORKING);
 		header.setLength((byte) content.length);
-		awakeMsg.setEslHeader(header);
-		awakeMsg.setContent(content);
-		channel.writeAndFlush(awakeMsg);
+		networkingMsg.setEslHeader(header);
+		networkingMsg.setContent(content);
+		channel.writeAndFlush(networkingMsg);
 	}
 
 	/**
-	 * 取消更新类消息
-	 * 
-	 * @Title cancel
-	 * @Description TODO()
-	 * @params @param eslMessage
-	 * @params @return
-	 * @return ESLMessage
-	 * @throws @create 2018年8月24日 下午1:54:56
-	 * @lastUpdate 2018年8月24日 下午1:54:56
+	 * 响应心跳
+	 * @param channel
 	 */
-	private void sendCancel(SocketChannel channel) {
+	private void pong(SocketChannel channel, ESLMessage eslMessage){
+		byte[] gatewayBytes = new byte[8];
+		System.arraycopy(eslMessage.getContent(), 0, gatewayBytes, 0, 8);
+		String gatewayName = null;
+		gatewayName = new String(gatewayBytes);
+		gatewayName = gatewayName.trim();
+		SocketChannel ch = regChannelGroup.get(gatewayName);
+		ESLMessage pongMsg = new ESLMessage();
+		ESLHeader header = new ESLHeader();
+		header.setCode(HeaderType.RESP);
+		header.setType(MessageType.PONG);
+		byte[] content = new byte[0];
+		pongMsg.setContent(content);
+		header.setLength((byte)content.length);
+		pongMsg.setEslHeader(header);
+
+		ch.writeAndFlush(pongMsg);
+	}
+
+	/**
+	 * 新设备入网
+	 * @param channel
+	 * @param eslMessage
+	 */
+	private void network(SocketChannel channel, ESLMessage eslMessage) {
+		byte[] deviceTypeBytes = new byte[1];
+		System.arraycopy(eslMessage.getContent(), 0, deviceTypeBytes, 0, 1);
+
+		if(deviceTypeBytes.length > 0){
+			switch (deviceTypeBytes[0]) {
+				case 0x01:
+					break;
+				case 0x02:
+					break;
+				case 0x03:
+					break;
+				case 0x04:
+					break;
+				default:
+					break;
+			}
+		}
+
+		byte[] deviceIDBytes = new byte[2];
+		System.arraycopy(eslMessage.getContent(), 0, deviceIDBytes, 0, 8);
+		String deviceID = null;
+		deviceID = new String(deviceIDBytes);
+		deviceID = deviceID.trim();
+		ESLMessage networkMsg = new ESLMessage();
+		ESLHeader header = new ESLHeader();
+		header.setCode(HeaderType.RESP);
+		header.setType(MessageType.NETWORK);
+		byte[] content = new byte[0];
+		networkMsg.setContent(content);
+		header.setLength((byte)content.length);
+		networkMsg.setEslHeader(header);
+
+		channel.writeAndFlush(networkMsg);
+
+	}
+
+	/**
+	 * 控制命令
+	 * @param channel
+	 * @param eslMessage
+	 */
+	private void controlle(SocketChannel channel, ESLMessage eslMessage) {
 		ESLMessage respMessage = new ESLMessage();
 
 	}
 
-	private void handleCancel(SocketChannel channel, ESLMessage eslMessage) {
+	/**
+	 * 设备状态更新
+	 * @param channel
+	 * @param eslMessage
+	 */
+	private void update(SocketChannel channel, ESLMessage eslMessage) {
 
 	}
 
 	/**
-	 * 更新成功类消息
-	 * 
-	 * @Title done
-	 * @Description TODO()
-	 * @params @param eslMessage
-	 * @params @return
-	 * @return ESLMessage
-	 * @throws @create 2018年8月24日 下午1:55:11
-	 * @lastUpdate 2018年8月24日 下午1:55:11
+	 * 显示更新
+	 * @param channel
+	 * @param eslMessage
 	 */
-	private void sendDone(SocketChannel channel, ESLMessage eslMessage) {
-		ESLMessage respMessage = new ESLMessage();
-
-	}
-
-	private void handleDone(SocketChannel channel, ESLMessage eslMessage) {
-
-	}
-
-	private void handleBOM(SocketChannel channel, ESLMessage eslMessage) {
+	private void display(SocketChannel channel, ESLMessage eslMessage) {
 
 	}
 

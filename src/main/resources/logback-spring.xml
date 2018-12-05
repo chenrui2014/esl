@@ -19,6 +19,12 @@
 				</pattern>
 			</encoder>
 		</springProfile>
+        <springProfile name="prod">
+            <encoder charset="utf-8">
+                <pattern>[%-5level] === %d{${DATETIME}} [%thread] %logger{36} - %m%n
+                </pattern>
+            </encoder>
+        </springProfile>
 	</appender>
 	<!-- ERROR 输入到文件，按日期和文件大小 -->
     <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">

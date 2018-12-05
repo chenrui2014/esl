@@ -9,39 +9,27 @@ package com.boe.esl.socket.struct;
  * @create 2018年8月22日 上午8:52:59
  * @lastUpdate 2018年8月22日 上午8:52:59
  */
-public enum MessageType {
+public enum DeviceType {
 	/**
-	 * 网关注册
+	 * 网关
 	 */
-	REGISTER((byte)0x01),
+	GATEWAY((byte)0x01),
 	/**
-	 * 组网
+     * 物料箱
 	 */
-	NETWORKING((byte)0x02),
+	MBOX((byte)0x02),
 	/**
-	 * 心跳ping包
+	 * 货架
 	 */
-	PONG((byte)0x03),
+	SHELF((byte)0x03),
 	/**
-	 * 新设备入网
+	 * 看板
 	 */
-	NETWORK((byte)0x04),
-	/**
-	 * 设备状态更新
-	 */
-	UPDATE((byte)0x05),
-	/**
-	 * 控制命令
-	 */
-	 CONTROLLE((byte)0x06),
-	/**
-	 * 显示更新
-	 */
-	DISPLAY((byte)0x07);
+	DASHBOAD((byte)0x04);
 
 	private byte value;
-	
-	private MessageType(byte value) {
+
+	private DeviceType(byte value) {
 		this.value = value;
 	}
 	
