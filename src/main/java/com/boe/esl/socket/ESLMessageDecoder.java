@@ -59,28 +59,22 @@ public class ESLMessageDecoder extends LengthFieldBasedFrameDecoder {
 			header.setType(MessageType.REGISTER);
 			break;
 		case 0x02:
-			header.setType(MessageType.AWAKE);
+			header.setType(MessageType.NETWORKING);
 			break;
 		case 0x03:
-			header.setType(MessageType.LOGIN);
+			header.setType(MessageType.PONG);
 			break;
 		case 0x04:
-			header.setType(MessageType.UPDATE);
+			header.setType(MessageType.NETWORK);
 			break;
 		case 0x05:
-			header.setType(MessageType.CANCEL);
+			header.setType(MessageType.UPDATE);
 			break;
 		case 0x06:
-			header.setType(MessageType.DONE);
+			header.setType(MessageType.CONTROL);
 			break;
 		case 0x08:
-			header.setType(MessageType.INFO);
-			break;
-		case 0x09:
-			header.setType(MessageType.PING);
-			break;
-		case 0x0a:
-			header.setType(MessageType.PONG);
+			header.setType(MessageType.DISPLAY);
 			break;
 		default:
 			break;

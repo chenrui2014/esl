@@ -262,14 +262,23 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 labelID = labelID.trim();
                 Label label = new Label();
                 label.setCode(labelID);
-                regChannelGroup.forEach((k, v) -> {
-                    if (v.equals(channel)) {
-                        Gateway gateway1 = gatewayService.getGatewayByKey(k);
-                        label.setGateway(gateway1);
-                        return;
+                SocketChannel ch = null;
+                String key = "";
+                Iterator<Map.Entry<String,SocketChannel>> it = regChannelGroup.entrySet().iterator();
+                while (it.hasNext()){
+                    Map.Entry<String,SocketChannel> entry = it.next();
+                    if(entry.getValue().equals(channel)){
+                        key=entry.getKey();
+                        ch=entry.getValue();
+                        break;
                     }
-                });
-                labelService.save(label);
+                }
+                if(!"".equals(key) && ch != null){
+                    Gateway gateway1 = gatewayService.getGatewayByKey(key);
+                    label.setGateway(gateway1);
+                    labelService.save(label);
+                    //发送应答
+                }
                 break;
             default:
                 break;

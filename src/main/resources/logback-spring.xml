@@ -20,6 +20,12 @@
 			</encoder>
 		</springProfile>
         <springProfile name="prod">
+        <encoder charset="utf-8">
+            <pattern>[%-5level] === %d{${DATETIME}} [%thread] %logger{36} - %m%n
+            </pattern>
+        </encoder>
+    </springProfile>
+        <springProfile name="test">
             <encoder charset="utf-8">
                 <pattern>[%-5level] === %d{${DATETIME}} [%thread] %logger{36} - %m%n
                 </pattern>

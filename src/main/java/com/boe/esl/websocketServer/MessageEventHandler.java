@@ -1,5 +1,6 @@
 package com.boe.esl.websocketServer;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -82,6 +83,7 @@ public class MessageEventHandler {
 
 	@OnEvent(value = "sendControl")
 	public void onControlEvent(SocketIOClient client, AckRequest ackRequest, ControlMessage controlMessage) {
+		log.info("处理控制指令");
 		Label label = labelService.getLabelByCode(controlMessage.getLabelCode());
 		Gateway gateway = null;
 		if(label != null){
@@ -107,9 +109,32 @@ public class MessageEventHandler {
 		}
 	}
 
+	@OnEvent(value = "sendNetwork")
+	public void onNetworkEvent(SocketIOClient client, AckRequest ackRequest, Map<String,List<String>> networkMap){
+
+		log.info("处理组网事件");
+		if(networkMap != null){
+			networkMap.forEach((k,v) ->{
+				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
+				SocketChannel ch = regChannelGroup.get(k);
+				ESLMessage networkMsg = new ESLMessage();
+				ESLHeader header = new ESLHeader();
+				header.setCode(HeaderType.REQ);
+				header.setType(MessageType.NETWORKING);
+				byte[] content = new byte[1];
+				content[0] = 0x01;//开始组网
+				header.setLength((byte) content.length);
+				networkMsg.setContent(content);
+				networkMsg.setEslHeader(header);
+				ch.writeAndFlush(networkMsg);
+			});
+		}
+
+	}
+
 	@OnEvent(value = "sendUpdate")
 	public void onUpdateEvent(SocketIOClient client, AckRequest ackRequest, UpdateVO updatevo) {
-		log.info("更新标签");
+		log.info("更新标签事件");
 		Label label = labelService.findById(updatevo.getLabelId());
 		Gateway gateway = null;
 		if(label != null){

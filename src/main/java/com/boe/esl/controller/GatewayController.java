@@ -1,10 +1,14 @@
 package com.boe.esl.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.websocket.server.PathParam;
 
+import com.boe.esl.socket.ServerHandler;
+import io.netty.channel.socket.SocketChannel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -69,8 +73,15 @@ public class GatewayController {
 	@ApiVersion(1)
 	@PostMapping(value = "")
 	public RestResult<GatewayVO> addGateway( @RequestBody GatewayVO gatewayVO) {
-		return RestResultGenerator.genSuccessResult(
-				gatewayService.convertEntity(gatewayService.save(gatewayService.convertVO(gatewayVO))));
+
+		Gateway gateway = null;
+		try{
+			gateway = gatewayService.save(gatewayService.convertVO(gatewayVO));
+			return RestResultGenerator.genSuccessResult(
+					gatewayService.convertEntity(gateway));
+		}catch (Exception e){
+			return RestResultGenerator.genErrorResult(ResultEnum.DATA_ERROR);
+		}
 	}
 
 	@ApiVersion(1)
