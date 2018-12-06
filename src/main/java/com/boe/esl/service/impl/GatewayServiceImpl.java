@@ -86,4 +86,9 @@ public class GatewayServiceImpl extends BaseServiceImpl<Gateway, Long, GatewayVO
 		return null;
 	}
 
+	@Override
+	public Gateway getGatewayByKey(String key) {
+		return gatewayDao.findByKey(key);
+	}
+
 }

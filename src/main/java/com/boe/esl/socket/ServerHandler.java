@@ -9,16 +9,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.boe.esl.model.*;
+import com.boe.esl.service.*;
 import com.boe.esl.socket.struct.*;
 import com.boe.esl.vo.UpdateVO;
+import io.swagger.annotations.ApiModelProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import com.boe.esl.service.BoardService;
-import com.boe.esl.service.GatewayService;
-import com.boe.esl.service.OperatorService;
-import com.boe.esl.service.UpdateService;
 import com.boe.esl.websocketServer.MessageEventHandler;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -42,13 +40,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     private GatewayService gatewayService;
 
     @Autowired
-    private UpdateService updateService;
-
-    @Autowired
-    private BoardService boardService;
-
-    @Autowired
-    private OperatorService operatorService;
+    private LabelService labelService;
 
     @Autowired
     private MessageEventHandler websocketHandler;
@@ -215,8 +207,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * 响应心跳
-     *
      * @param channel
+     * @param eslMessage
      */
     private void pong(SocketChannel channel, ESLMessage eslMessage) {
         byte[] gatewayBytes = new byte[8];
@@ -261,30 +253,27 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 regChannelGroup.put(deviceID, channel);// 保存通道
                 break;
             case 0x02:
-                break;
             case 0x03:
-                break;
             case 0x04:
+                byte[] labelIDBytes = new byte[8];
+                System.arraycopy(eslMessage.getContent(), 1, labelIDBytes, 0, 8);
+                String labelID = null;
+                labelID = new String(labelIDBytes);
+                labelID = labelID.trim();
+                Label label = new Label();
+                label.setCode(labelID);
+                regChannelGroup.forEach((k, v) -> {
+                    if (v.equals(channel)) {
+                        Gateway gateway1 = gatewayService.getGatewayByKey(k);
+                        label.setGateway(gateway1);
+                        return;
+                    }
+                });
+                labelService.save(label);
                 break;
             default:
                 break;
         }
-
-//		byte[] deviceIDBytes = new byte[8];
-//		System.arraycopy(eslMessage.getContent(), 1, deviceIDBytes, 0, 8);
-//		String deviceID = null;
-//		deviceID = new String(deviceIDBytes);
-//		deviceID = deviceID.trim();
-//		ESLMessage networkMsg = new ESLMessage();
-//		ESLHeader header = new ESLHeader();
-//		header.setCode(HeaderType.RESP);
-//		header.setType(MessageType.NETWORK);
-//		byte[] content = new byte[0];
-//		networkMsg.setContent(content);
-//		header.setLength((byte)content.length);
-//		networkMsg.setEslHeader(header);
-//
-//		channel.writeAndFlush(networkMsg);
 
     }
 
