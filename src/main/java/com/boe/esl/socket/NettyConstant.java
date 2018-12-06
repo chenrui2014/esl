@@ -53,4 +53,13 @@ public class NettyConstant {
 	public static final int RESP_REGISTER_BASE_LENGTH = 1;
 
 	public static final int REQ_UPDATE_LENGTH = 48;
+	/**
+	 * 请求控制数据帧
+	 * +--------+----------+---------------+
+	 * | 设备类型 | 设备ID   |  控制码        |
+	 * +--------+----------+---------------+
+	 * | 1字节   |  8字节   |    1字节       |
+	 * +--------+----------+---------------+
+	 */
+	public static final int REQ_CONTROL_LENGTH=10;
 }

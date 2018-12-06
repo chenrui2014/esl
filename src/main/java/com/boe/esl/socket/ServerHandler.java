@@ -1,11 +1,7 @@
 package com.boe.esl.socket;
 
 import java.sql.Timestamp;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.boe.esl.model.*;
@@ -46,7 +42,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     private MessageEventHandler websocketHandler;
 
     // 成功注册的channel
-    private Map<String, SocketChannel> regChannelGroup = new ConcurrentHashMap<String, SocketChannel>();
+    private Map<String, SocketChannel> regChannelGroup = new ConcurrentHashMap<>();
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -192,17 +188,17 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
      *
      * @param channel
      */
-    private void networking(SocketChannel channel) {
-        ESLMessage networkingMsg = new ESLMessage();
-        ESLHeader header = new ESLHeader();
-        byte[] content = new byte[1];
-        content[0] = 0x01;//开始组网
-        header.setCode(HeaderType.REQ);
-        header.setType(MessageType.NETWORKING);
-        header.setLength((byte) content.length);
-        networkingMsg.setEslHeader(header);
-        networkingMsg.setContent(content);
-        channel.writeAndFlush(networkingMsg);
+    private void networking(SocketChannel channel, ESLMessage eslMessage) {
+//        ESLMessage networkingMsg = new ESLMessage();
+//        ESLHeader header = new ESLHeader();
+//        byte[] content = new byte[1];
+//        content[0] = 0x01;//开始组网
+//        header.setCode(HeaderType.REQ);
+//        header.setType(MessageType.NETWORKING);
+//        header.setLength((byte) content.length);
+//        networkingMsg.setEslHeader(header);
+//        networkingMsg.setContent(content);
+//        channel.writeAndFlush(networkingMsg);
     }
 
     /**
@@ -260,24 +256,78 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 String labelID = null;
                 labelID = new String(labelIDBytes);
                 labelID = labelID.trim();
-                Label label = new Label();
-                label.setCode(labelID);
-                SocketChannel ch = null;
-                String key = "";
-                Iterator<Map.Entry<String,SocketChannel>> it = regChannelGroup.entrySet().iterator();
-                while (it.hasNext()){
-                    Map.Entry<String,SocketChannel> entry = it.next();
-                    if(entry.getValue().equals(channel)){
-                        key=entry.getKey();
-                        ch=entry.getValue();
-                        break;
+                Label label = labelService.getLabelByMac(labelID);
+                if(label != null){
+                    if(LabelStatus.NETWORKING.getCode() == label.getStatus()){
+                        label.setStatus(LabelStatus.ON_LINE.getCode());//AP组网成功向CA发出新设备入网请求，CA将设备状态更新未在线
                     }
-                }
-                if(!"".equals(key) && ch != null){
-                    Gateway gateway1 = gatewayService.getGatewayByKey(key);
-                    label.setGateway(gateway1);
-                    labelService.save(label);
-                    //发送应答
+                    Iterator<Map.Entry<String,SocketChannel>> it = regChannelGroup.entrySet().iterator();
+                    boolean isReg=false;
+                    while (it.hasNext()){
+                        Map.Entry<String,SocketChannel> entry = it.next();
+                        if(entry.getValue().equals(channel)){
+                            try {
+                                Gateway gateway1 = gatewayService.getGatewayByKey(entry.getKey());
+                                if(gateway1 != null){
+                                    if(gateway1.equals(label.getGateway())){
+                                        labelService.save(label);//同一网关可组网
+                                        List<Label> labelList = labelService.getLabelListByGateway(gateway1.getId());
+                                        boolean isFinish=true;
+                                        if(labelList != null && labelList.size() > 0){
+                                            for (Label label2:
+                                                    labelList) {
+                                                if(LabelStatus.NETWORKING.getCode() == label2.getStatus()){
+                                                    isFinish=false;
+                                                }
+                                            }
+                                        }
+                                        if(isFinish){//如果该AP所有标签都完成接入，则发送停止组网消息给AP，并停止定时
+                                            ESLMessage networkMsg = new ESLMessage();
+                                            ESLHeader header = new ESLHeader();
+                                            header.setCode(HeaderType.REQ);
+                                            header.setType(MessageType.NETWORKING);
+                                            byte[] content = new byte[1];
+                                            content[0] = 0x02;//停止组网
+                                            header.setLength((byte) content.length);
+                                            networkMsg.setContent(content);
+                                            networkMsg.setEslHeader(header);
+                                           entry.getValue().writeAndFlush(networkMsg);
+                                           //取消定时任务
+                                           Timer timer = websocketHandler.getTimerMap().get(entry.getKey());
+                                           if(timer != null){
+                                               timer.cancel();
+                                           }
+                                        }
+
+                                    }else{
+                                        log.error("该设备已经与其他AP组网，请确认");
+                                    }
+                                }else{
+                                    log.error("网关不存在或者没有注册，请先注册");
+                                }
+                            }catch (Exception e){
+                                log.error("数据库错误",e);
+                            }
+                            //发送应答
+                            ESLHeader header = new ESLHeader();
+                            ESLMessage respMsg = new ESLMessage();
+                            header.setCode(HeaderType.RESP);
+                            header.setType(MessageType.NETWORK);
+                            byte[] content = new byte[0];
+                            respMsg.setContent(content);
+                            header.setLength((byte) content.length);
+                            respMsg.setEslHeader(header);
+                            respMsg.setContent(content);
+                            entry.getValue().writeAndFlush(respMsg);
+                            isReg=true;
+                            websocketHandler.toAll(label);
+                            break;
+                        }
+                    }
+                    if(!isReg){
+                        //网关未注册，需要注册
+                        log.error("网关没有注册，请先注册");
+                    }
                 }
                 break;
             default:
@@ -338,11 +388,11 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 byte[] statusByte = new byte[1];
                 System.arraycopy(eslMessage.getContent(), 9, statusByte, 0, 1);
                 if(statusByte[0] == 0x00){
-                    label.setStatus((short)LabelStatus.OFF_LINE.getCode());
+                    label.setStatus(LabelStatus.OFF_LINE.getCode());
                 }
 
                 if(statusByte[0] == 0x01){
-                    label.setStatus((short)LabelStatus.ON_LINE.getCode());
+                    label.setStatus(LabelStatus.ON_LINE.getCode());
                 }
 
                 byte[] powerBytes = new byte[2];

@@ -8,5 +8,5 @@ public class ESLHeader {
 	private byte length;//数据长度
 	private byte version= 0x01;//版本
 	private MessageType type;//命令类型
-	private byte pading = 0x00;//预留字段
+	private byte padding = 0x00;//预留字段
 }

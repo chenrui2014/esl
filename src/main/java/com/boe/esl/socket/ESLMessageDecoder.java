@@ -27,7 +27,7 @@ public class ESLMessageDecoder extends LengthFieldBasedFrameDecoder {
 		byte headType = frame.getByte(0);
 		byte version = frame.getByte(1);
 		byte type = frame.getByte(2);
-		byte pading = frame.getByte(3);
+		byte padding = frame.getByte(3);
 		byte length = frame.getByte(4);
 		byte[] content = new byte[length];
 		frame.getBytes(5, content);
@@ -79,7 +79,7 @@ public class ESLMessageDecoder extends LengthFieldBasedFrameDecoder {
 		default:
 			break;
 		}
-		header.setPading(pading);
+		header.setPadding(padding);
 		header.setLength(length);
 		message.setEslHeader(header);
 		message.setContent(content);

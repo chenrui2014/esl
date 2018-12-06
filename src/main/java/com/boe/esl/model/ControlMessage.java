@@ -12,6 +12,8 @@ import java.io.Serializable;
 public class ControlMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private int optType;
-    private String labelCode;
+
+    private byte deviceType;
+    private byte optType;
+    private String labelMac;
 }

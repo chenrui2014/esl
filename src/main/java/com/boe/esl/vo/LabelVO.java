@@ -16,7 +16,7 @@ public class LabelVO implements BaseVO {
 	private String gatewayMac;
 	private String code;
 	private String type;
-	private Short status;
+	private Integer status;
 	private String statusText;
 	private String power;
 

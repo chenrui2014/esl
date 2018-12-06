@@ -1,5 +1,6 @@
 package com.boe.esl.socket;
 
+import com.boe.esl.model.ControlMessage;
 import com.boe.esl.model.Goods;
 import com.boe.esl.model.Label;
 import com.boe.esl.socket.struct.ResultStatus;
@@ -12,6 +13,20 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ESLSocketUtils {
 
+	public static ByteBuf createControlContent(ControlMessage controlMessage){
+		ByteBuf controlByte = Unpooled.buffer(NettyConstant.REQ_CONTROL_LENGTH);
+		byte[] controlBytes = new byte[NettyConstant.REQ_CONTROL_LENGTH];
+		try {
+			System.arraycopy(controlMessage.getDeviceType(), 0, controlBytes, 0, 1);
+			System.arraycopy(controlMessage.getLabelMac().getBytes(), 0, controlBytes, 1, controlMessage.getLabelMac().getBytes().length);
+			System.arraycopy(controlMessage.getOptType(), 0, controlBytes, 9, 1);
+		}catch (Exception e) {
+			log.error("字符编码转换错误", e.getMessage());
+		}
+
+		controlByte.writeBytes(controlBytes);
+		return controlByte;
+	}
 
 	public static ByteBuf convertUpdateToByte(UpdateVO updateVO){
 		ByteBuf infoByte = Unpooled.buffer(NettyConstant.REQ_UPDATE_LENGTH);

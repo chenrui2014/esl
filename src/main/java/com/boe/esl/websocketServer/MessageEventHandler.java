@@ -1,15 +1,16 @@
 package com.boe.esl.websocketServer;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PreDestroy;
 
 import com.boe.esl.model.*;
+import com.boe.esl.service.GatewayService;
 import com.boe.esl.socket.struct.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.boe.esl.service.LabelService;
@@ -54,12 +55,22 @@ public class MessageEventHandler {
 	private LabelService labelService;
 
 	@Autowired
+	private GatewayService gatewayService;
+
+	@Autowired
 	@Qualifier("serverHandler")
 	private ServerHandler serverHandler;
 
+	private Map<String, Timer> timerMap;
+
+	@Value("esl.network-timeout")
+	private int networkTimeout;//组网超时时间
+
 	@Autowired
 	public MessageEventHandler(SocketIOServer server) {
+
 		this.server = server;
+		timerMap = new HashMap<>();
 	}
 
 	@OnConnect
@@ -84,7 +95,7 @@ public class MessageEventHandler {
 	@OnEvent(value = "sendControl")
 	public void onControlEvent(SocketIOClient client, AckRequest ackRequest, ControlMessage controlMessage) {
 		log.info("处理控制指令");
-		Label label = labelService.getLabelByCode(controlMessage.getLabelCode());
+		Label label = labelService.getLabelByMac(controlMessage.getLabelMac());
 		Gateway gateway = null;
 		if(label != null){
 			gateway = label.getGateway();
@@ -95,11 +106,10 @@ public class MessageEventHandler {
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
 				header.setType(MessageType.CONTROL);
-				byte[] content = new byte[1];
-				content[0] = 0x01;
-				controlMsg.setContent(content);
+				byte[] content = ESLSocketUtils.createControlContent(controlMessage).array();
 				header.setLength((byte) content.length);
 				controlMsg.setEslHeader(header);
+				controlMsg.setContent(content);
 				ch.writeAndFlush(controlMsg);
 			}else{
 				client.sendEvent("sendControl","该标签没有入网");
@@ -115,6 +125,22 @@ public class MessageEventHandler {
 		log.info("处理组网事件");
 		if(networkMap != null){
 			networkMap.forEach((k,v) ->{
+				Gateway gateway = gatewayService.getGatewayByKey(k);
+				if(gateway == null){
+					client.sendEvent("sendNetwork","网关不存在");
+				}else{
+					List<Label> labelList = new ArrayList<>();
+					v.forEach(code ->{
+						Label label = labelService.getLabelByCode(code);
+						if(label != null){
+							label.setGateway(gateway);
+							label.setStatus(LabelStatus.NETWORKING.getCode());
+							labelList.add(label);
+						}
+					});
+					//批量插入
+					labelService.save(labelList);
+				}
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
 				SocketChannel ch = regChannelGroup.get(k);
 				ESLMessage networkMsg = new ESLMessage();
@@ -127,6 +153,9 @@ public class MessageEventHandler {
 				networkMsg.setContent(content);
 				networkMsg.setEslHeader(header);
 				ch.writeAndFlush(networkMsg);
+				Timer timer = new Timer();//每个网关一个定时器
+				timer.schedule(new NetworkTimeTask(ch), networkTimeout);
+				timerMap.put(k,timer);
 			});
 		}
 
@@ -210,6 +239,14 @@ public class MessageEventHandler {
 //		}
 //		
 		clientMap.forEach((k,v)->toOneBoard(k, "sendBoard", message));
+	}
+
+	public Map<String, Timer> getTimerMap() {
+		return timerMap;
+	}
+
+	public void setTimerMap(Map<String, Timer> timerMap) {
+		this.timerMap = timerMap;
 	}
 
 	@PreDestroy

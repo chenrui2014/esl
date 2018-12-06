@@ -102,4 +102,16 @@ public class LabelServiceImpl extends BaseServiceImpl<Label, Long, LabelVO> impl
 		}
 		return null;
 	}
+
+	@Override
+	public Label getLabelByMac(String mac) {
+		return labelDao.findByMac(mac);
+	}
+
+	@Override
+	public List<Label> getLabelListByGateway(Long gatewayId) {
+		return labelDao.findByGateway_Id(gatewayId);
+	}
+
+
 }

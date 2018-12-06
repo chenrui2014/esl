@@ -34,7 +34,7 @@ public class Label implements BaseModel<Long> {
 	private String mac;
 	private String code;
 	private String type;
-	private Short status;
+	private Integer status;
     private String power;
 
 	@ManyToOne
