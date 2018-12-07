@@ -84,17 +84,32 @@ public class ESLSocketUtils {
 	 * @return
 	 */
 	public static ByteBuf createControlContent(ControlMessage controlMessage){
-		ByteBuf controlByte = Unpooled.buffer(NettyConstant.REQ_CONTROL_LENGTH);
-		byte[] controlBytes = new byte[NettyConstant.REQ_CONTROL_LENGTH];
+//		ByteBuf controlByte = Unpooled.buffer(NettyConstant.REQ_CONTROL_LENGTH);
+//		byte[] controlBytes = new byte[NettyConstant.REQ_CONTROL_LENGTH];
+		byte[] controlBytes = new byte[255];
+		int position = 0;
 		try {
-			System.arraycopy(controlMessage.getDeviceType(), 0, controlBytes, 0, 1);
-			System.arraycopy(controlMessage.getLabelMac().getBytes(), 0, controlBytes, 1, controlMessage.getLabelMac().getBytes().length);
-			System.arraycopy(controlMessage.getOptType(), 0, controlBytes, 9, 1);
+			controlBytes[0] = controlMessage.getDeviceType();
+			position += 1;
+			System.arraycopy(controlMessage.getLabelCode().getBytes(), 0, controlBytes, position, controlMessage.getLabelCode().getBytes().length);
+			position += controlMessage.getLabelCode().getBytes().length;
+			controlBytes[position] = controlMessage.getOptType();
+			position += 1;
+
+			System.arraycopy(controlMessage.getMaterialName().getBytes(), 0, controlBytes, position, controlMessage.getMaterialName().getBytes().length);
+			position += controlMessage.getMaterialName().getBytes().length;
+			controlBytes[position]=0x00;
+			position +=1;
+			System.arraycopy(shortToByteArray(controlMessage.getMaterialNum()), 0, controlBytes, position, 2);
+			position += 2;
+
 		}catch (Exception e) {
 			log.error("字符编码转换错误", e.getMessage());
 		}
-
-		controlByte.writeBytes(controlBytes);
+		ByteBuf controlByte = Unpooled.buffer(position);
+		byte[] realByte = new byte[position];
+		System.arraycopy(controlBytes, 0, realByte, 0, position);
+		controlByte.writeBytes(realByte);
 		return controlByte;
 	}
 

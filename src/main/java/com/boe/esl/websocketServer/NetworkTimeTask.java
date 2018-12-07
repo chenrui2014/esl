@@ -4,11 +4,13 @@ import com.boe.esl.socket.struct.ESLHeader;
 import com.boe.esl.socket.struct.ESLMessage;
 import com.boe.esl.socket.struct.HeaderType;
 import com.boe.esl.socket.struct.MessageType;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.socket.SocketChannel;
-import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.TimerTask;
 
+@Slf4j
 public class NetworkTimeTask extends TimerTask {
 
     private boolean isRun;
@@ -31,7 +33,8 @@ public class NetworkTimeTask extends TimerTask {
         header.setLength((byte) content.length);
         networkMsg.setContent(content);
         networkMsg.setEslHeader(header);
-        this.channel.writeAndFlush(networkMsg);
+        ChannelFuture future = this.channel.writeAndFlush(networkMsg);
+        future.addListener(future1 -> log.info("停止组网成功"));
         isRun=true;
     }
 

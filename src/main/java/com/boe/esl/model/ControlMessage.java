@@ -15,5 +15,7 @@ public class ControlMessage implements Serializable {
 
     private byte deviceType;
     private byte optType;
-    private String labelMac;
+    private String labelCode;
+    private String materialName;
+    private short materialNum;
 }

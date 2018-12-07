@@ -1,14 +1,11 @@
 package com.boe.esl.socket;
 
-import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.boe.esl.model.*;
 import com.boe.esl.service.*;
 import com.boe.esl.socket.struct.*;
-import com.boe.esl.vo.UpdateVO;
-import io.swagger.annotations.ApiModelProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -23,8 +20,6 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import lombok.extern.slf4j.Slf4j;
-
-import static com.boe.esl.socket.struct.DeviceType.*;
 
 @Slf4j
 @Component
