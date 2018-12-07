@@ -13,6 +13,76 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ESLSocketUtils {
 
+	/**
+	 * 构造更新显示信息数据帧:"01货架号0002物料名称0003物料数量00"
+	 * @param updateVO
+	 * @return
+	 */
+	public static ByteBuf createUpdateContent(UpdateVO updateVO){
+		byte[] updateBytes = new byte[255];
+		int position = 0;
+		try {
+			updateBytes[0]=0x03;
+			position += 1;
+			byte[] macBytes = deviceIdToByteArray(updateVO.getLabelCode());
+			System.arraycopy(macBytes, 0, updateBytes, position, macBytes.length);
+			position += macBytes.length;
+			updateBytes[position]=0x01;
+			position += 1;
+			System.arraycopy(updateVO.getSid().getBytes(), 0, updateBytes, position, updateVO.getSid().getBytes().length);
+			position += updateVO.getSid().getBytes().length;
+			updateBytes[position]=0x00;
+			position +=1;
+			updateBytes[position]=0x02;
+			position +=1;
+			System.arraycopy(updateVO.getMaterialName().getBytes(), 0, updateBytes, position, updateVO.getMaterialName().getBytes().length);
+			position += updateVO.getMaterialName().getBytes().length;
+			updateBytes[position]=0x00;
+			position +=1;
+			updateBytes[position] = 0x03;
+			position += 1;
+			System.arraycopy(shortToByteArray(updateVO.getMaterialNum()), 0, updateBytes, position, 2);
+			position += 2;
+			updateBytes[position]=0x00;
+			position +=1;
+		}catch (Exception e) {
+			log.error("字符编码转换错误", e.getMessage());
+		}
+
+		ByteBuf updateByte = Unpooled.buffer(position);
+		byte[] realByte = new byte[position];
+		System.arraycopy(updateBytes, 0, realByte, 0, position);
+		updateByte.writeBytes(realByte);
+		return updateByte;
+	}
+
+	/**
+	 * 将16位的short转换成byte数组
+	 *
+	 * @param s
+	 *            short
+	 * @return byte[] 长度为2
+	 * */
+	public static byte[] shortToByteArray(short s) {
+		byte[] targets = new byte[2];
+		targets[0] = (byte)(s & 0xff);
+		targets[1] = (byte) ((s >>> 8) & 0xff);
+//		for (int i = 0; i < 2; i++) {
+//			int offset = (targets.length - 1 - i) * 8;
+//			targets[i] = (byte) ((s >>> offset) & 0xff);
+//		}
+		return targets;
+	}
+
+	public static short byteArray2Short(byte[] bytes){
+		int targets = (bytes[0] & 0xff) | ((bytes[1] << 8) & 0xff00); // | 表示安位或
+		return (short) targets;
+	}
+	/**
+	 * 构造控制指令数据帧
+	 * @param controlMessage
+	 * @return
+	 */
 	public static ByteBuf createControlContent(ControlMessage controlMessage){
 		ByteBuf controlByte = Unpooled.buffer(NettyConstant.REQ_CONTROL_LENGTH);
 		byte[] controlBytes = new byte[NettyConstant.REQ_CONTROL_LENGTH];
@@ -35,7 +105,7 @@ public class ESLSocketUtils {
 			System.arraycopy(updateVO.getSid().getBytes(), 0, updateBytes, 0, updateVO.getSid().getBytes().length);
 			System.arraycopy(updateVO.getBarCode().getBytes(), 0, updateBytes, 6, updateVO.getBarCode().getBytes().length);
 			System.arraycopy(updateVO.getMaterialName().getBytes(), 0, updateBytes, 21, updateVO.getMaterialName().getBytes().length);
-			System.arraycopy(updateVO.getMaterialNum().getBytes(), 0, updateBytes, 36, updateVO.getMaterialNum().getBytes().length);
+			System.arraycopy(shortToByteArray(updateVO.getMaterialNum()), 0, updateBytes, 36, 2);
 		}catch (Exception e) {
 			log.error("字符编码转换错误", e.getMessage());
 		}
@@ -148,6 +218,17 @@ public class ESLSocketUtils {
 		return macBytes;
 	}
 
+	public static byte[] deviceIdToByteArray(String mac) {
+		byte[] macBytes = new byte[8];
+		String[] strArr = mac.split(":");
+
+		for (int i = 0; i < strArr.length; i++) {
+			int value = Integer.parseInt(strArr[i], 16);
+			macBytes[i] = (byte) value;
+		}
+		return macBytes;
+	}
+
 	/**
 	 * mac地址byte数组转换为字符串
 	 * @Title ByteArrayToMac
@@ -160,6 +241,17 @@ public class ESLSocketUtils {
 	 * @lastUpdate 2018年8月22日 上午9:56:55
 	 */
 	public static String ByteArrayToMac(byte[] macBytes) {
+		String value = "";
+		for (int i = 0; i < macBytes.length; i++) {
+			String sTemp = Integer.toHexString(0xFF & macBytes[i]).toUpperCase();
+			value = value + sTemp + ":";
+		}
+
+		value = value.substring(0, value.lastIndexOf(":"));
+		return value;
+	}
+
+	public static String ByteArrayToDeviceId(byte[] macBytes) {
 		String value = "";
 		for (int i = 0; i < macBytes.length; i++) {
 			String sTemp = Integer.toHexString(0xFF & macBytes[i]).toUpperCase();

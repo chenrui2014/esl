@@ -17,7 +17,7 @@ public class ESLMessageEncoder extends MessageToByteEncoder<ESLMessage> {
 		out.writeByte(msg.getEslHeader().getCode().value());
 		out.writeByte(msg.getEslHeader().getVersion());
 		out.writeByte(msg.getEslHeader().getType().value());
-		out.writeByte(msg.getEslHeader().getPading());
+		out.writeByte(msg.getEslHeader().getPadding());
 		out.writeByte(msg.getContent().length);
 		out.writeBytes(msg.getContent());
 	}

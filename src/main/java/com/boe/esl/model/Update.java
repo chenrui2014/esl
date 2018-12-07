@@ -31,7 +31,7 @@ public class Update implements BaseModel<Long> {
 	private String sid;
 	private String barCode;
 	private String materialName;
-	private String materialNum;
+	private Short materialNum;
 	private String customJson;
 
 	@ManyToOne

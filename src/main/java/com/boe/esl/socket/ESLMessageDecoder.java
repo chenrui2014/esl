@@ -54,6 +54,7 @@ public class ESLMessageDecoder extends LengthFieldBasedFrameDecoder {
 			break;
 		}
 		header.setVersion(version);
+		System.out.println("解码:" + type);
 		switch (type) {
 		case 0x01:
 			header.setType(MessageType.REGISTER);
@@ -73,7 +74,7 @@ public class ESLMessageDecoder extends LengthFieldBasedFrameDecoder {
 		case 0x06:
 			header.setType(MessageType.CONTROL);
 			break;
-		case 0x08:
+		case 0x07:
 			header.setType(MessageType.DISPLAY);
 			break;
 		default:

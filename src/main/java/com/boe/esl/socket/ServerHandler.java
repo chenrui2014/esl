@@ -39,6 +39,9 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     private LabelService labelService;
 
     @Autowired
+    private UpdateService updateService;
+
+    @Autowired
     private MessageEventHandler websocketHandler;
 
     // 成功注册的channel
@@ -49,6 +52,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
         ESLMessage eslMessage = (ESLMessage) msg;
         ESLHeader header = eslMessage.getEslHeader();
+        System.out.println("消息类型：" + header.getType());
         if (header != null) {
             switch (header.getType()) {
                 case REGISTER://注册
@@ -57,7 +61,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 case NETWORKING://组网
                     break;
                 case PONG://心跳
-                    pong((SocketChannel) ctx.channel(), eslMessage);
+                    pong((SocketChannel) ctx.channel());
                     break;
                 case NETWORK://新设备入网
                     network((SocketChannel) ctx.channel(), eslMessage);
@@ -142,19 +146,21 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
      * @lastUpdate 2018年8月24日 下午1:53:18
      */
     private void handleRegister(SocketChannel channel, ESLMessage eslMessage) {
-        byte[] gatewayBytes = new byte[8];
-        System.arraycopy(eslMessage.getContent(), 0, gatewayBytes, 0, 8);
-        String gatewayName = null;
-        byte[] keyBytes = new byte[32];
-        System.arraycopy(eslMessage.getContent(), 8, keyBytes, 0, 32);
+        byte[] keyBytes = new byte[8];
+        System.arraycopy(eslMessage.getContent(), 0, keyBytes, 0, 8);
+        byte[] gatewayBytes = new byte[32];
+        System.arraycopy(eslMessage.getContent(), 8, gatewayBytes, 0, 32);
         String key = null;
+        String gatewayName = null;
+//        key = new String(keyBytes);
+        key = ESLSocketUtils.ByteArrayToMac(keyBytes);
         gatewayName = new String(gatewayBytes);
-        key = new String(keyBytes);
         gatewayName = gatewayName.trim();
         key = key.trim();
         Gateway gateway = new Gateway();
         gateway.setName(gatewayName);
         gateway.setKey(key);
+        gateway.setMac(key);
         //gateway.setOnline(true);
         Gateway gateway2 = gatewayService.findByNameAndKey(gateway);
         if (gateway2 != null) {
@@ -172,7 +178,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             byte[] status = {ResultStatus.OK.value()};
             respMessage.setContent(status);
 
-            regChannelGroup.put(gatewayName, channel);// 保存通道
+            regChannelGroup.put(key, channel);// 保存通道
 
         } catch (Exception e) {
 
@@ -204,15 +210,14 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     /**
      * 响应心跳
      * @param channel
-     * @param eslMessage
      */
-    private void pong(SocketChannel channel, ESLMessage eslMessage) {
-        byte[] gatewayBytes = new byte[8];
-        System.arraycopy(eslMessage.getContent(), 0, gatewayBytes, 0, 8);
-        String gatewayName = null;
-        gatewayName = new String(gatewayBytes);
-        gatewayName = gatewayName.trim();
-        SocketChannel ch = regChannelGroup.get(gatewayName);
+    private void pong(SocketChannel channel) {
+//        byte[] gatewayBytes = new byte[8];
+//        System.arraycopy(eslMessage.getContent(), 0, gatewayBytes, 0, 8);
+//        String key = null;
+//        key = new String(gatewayBytes);
+//        key = key.trim();
+//        SocketChannel ch = regChannelGroup.get(gatewayName);
         ESLMessage pongMsg = new ESLMessage();
         ESLHeader header = new ESLHeader();
         header.setCode(HeaderType.RESP);
@@ -222,7 +227,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
         header.setLength((byte) content.length);
         pongMsg.setEslHeader(header);
 
-        ch.writeAndFlush(pongMsg);
+        channel.writeAndFlush(pongMsg);
     }
 
     /**
@@ -240,8 +245,9 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 byte[] deviceIDBytes = new byte[8];
                 System.arraycopy(eslMessage.getContent(), 1, deviceIDBytes, 0, 8);
                 String deviceID = null;
-                deviceID = new String(deviceIDBytes);
-                deviceID = deviceID.trim();
+//                deviceID = new String(deviceIDBytes);
+//                deviceID = deviceID.trim();
+                deviceID = ESLSocketUtils.ByteArrayToMac(deviceIDBytes);
                 Gateway gateway = new Gateway();
                 gateway.setMac(deviceID);
                 gateway.setKey(deviceID);
@@ -254,13 +260,12 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 byte[] labelIDBytes = new byte[8];
                 System.arraycopy(eslMessage.getContent(), 1, labelIDBytes, 0, 8);
                 String labelID = null;
-                labelID = new String(labelIDBytes);
-                labelID = labelID.trim();
-                Label label = labelService.getLabelByMac(labelID);
+//                labelID = new String(labelIDBytes);
+//                labelID = labelID.trim();
+                labelID = ESLSocketUtils.ByteArrayToMac(labelIDBytes);
+                Label label = labelService.getLabelByCode(labelID);
                 if(label != null){
-                    if(LabelStatus.NETWORKING.getCode() == label.getStatus()){
-                        label.setStatus(LabelStatus.ON_LINE.getCode());//AP组网成功向CA发出新设备入网请求，CA将设备状态更新未在线
-                    }
+
                     Iterator<Map.Entry<String,SocketChannel>> it = regChannelGroup.entrySet().iterator();
                     boolean isReg=false;
                     while (it.hasNext()){
@@ -269,7 +274,10 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                             try {
                                 Gateway gateway1 = gatewayService.getGatewayByKey(entry.getKey());
                                 if(gateway1 != null){
-                                    if(gateway1.equals(label.getGateway())){
+                                    if(label.getGateway() != null && gateway1.getKey().equals(label.getGateway().getKey())){
+                                        if(LabelStatus.NETWORKING.getCode() == label.getStatus()){
+                                            label.setStatus(LabelStatus.ON_LINE.getCode());//AP组网成功向CA发出新设备入网请求，CA将设备状态更新为在线
+                                        }
                                         labelService.save(label);//同一网关可组网
                                         List<Label> labelList = labelService.getLabelListByGateway(gateway1.getId());
                                         boolean isFinish=true;
@@ -379,29 +387,56 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 byte[] deviceIDBytes = new byte[8];
                 System.arraycopy(eslMessage.getContent(), 1, deviceIDBytes, 0, 8);
                 String deviceID = null;
-                deviceID = new String(deviceIDBytes);
-                deviceID = deviceID.trim();
+//                deviceID = new String(deviceIDBytes);
+//                deviceID = deviceID.trim();
+                deviceID = ESLSocketUtils.ByteArrayToDeviceId(deviceIDBytes);
+//                Label label = new Label();
+//                label.setCode(deviceID);
+                Label label = labelService.getLabelByCode(deviceID);
+                if(label != null){
+                    byte[] statusByte = new byte[1];
+                    System.arraycopy(eslMessage.getContent(), 9, statusByte, 0, 1);
+                    if(statusByte[0] == 0x00){
+                        label.setStatus(LabelStatus.OFF_LINE.getCode());
+                    }
 
-                Label label = new Label();
-                label.setCode(deviceID);
+                    if(statusByte[0] == 0x01){
+                        label.setStatus(LabelStatus.ON_LINE.getCode());
+                    }
 
-                byte[] statusByte = new byte[1];
-                System.arraycopy(eslMessage.getContent(), 9, statusByte, 0, 1);
-                if(statusByte[0] == 0x00){
-                    label.setStatus(LabelStatus.OFF_LINE.getCode());
+                    byte[] powerBytes = new byte[1];
+                    System.arraycopy(eslMessage.getContent(), 10, powerBytes, 0, 1);
+                    int power;
+                    power = powerBytes[0];
+                    String powerStr = power+"%";
+                    label.setPower(powerStr);
+                    labelService.save(label);
+                    int totalLength = eslMessage.getEslHeader().getLength();
+                    int length = totalLength -11;
+                    if(length > 3){
+                        byte[] nameBytes = new byte[length-3];//丢弃0
+                        byte[] shortBytes = new byte[2];
+                        System.arraycopy(eslMessage.getContent(), 11, nameBytes, 0, nameBytes.length);
+                        System.arraycopy(eslMessage.getContent(), totalLength-2, nameBytes, 0, 2);
+                        short mNum = ESLSocketUtils.byteArray2Short(shortBytes);
+                        String mName ="";
+                        try {
+                            mName= new String(nameBytes);
+                        }catch (Exception e){
+                            log.error("字符编码转换错误", e.getMessage());
+                        }
+                        Update update1 =updateService.getLatestUpdateByLabelCode(label.getCode());
+                        if(update1 != null && label.equals(update1.getLabel())){
+                            if(!mName.equals(update1.getMaterialName()) || !(mNum == update1.getMaterialNum())){
+                                update1.setMaterialNum(mNum);
+                                update1.setMaterialName(mName);
+                                updateService.save(update1);
+                            }
+                        }
+                    }
+
+                    websocketHandler.toAll(label);
                 }
-
-                if(statusByte[0] == 0x01){
-                    label.setStatus(LabelStatus.ON_LINE.getCode());
-                }
-
-                byte[] powerBytes = new byte[2];
-                System.arraycopy(eslMessage.getContent(), 10, powerBytes, 0, 2);
-                String power = null;
-                power = new String(powerBytes);
-                power = power.trim();
-                label.setPower(power);
-                websocketHandler.toAll(label);
                 break;
         }
     }
@@ -413,8 +448,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
      * @param eslMessage
      */
     private void display(SocketChannel channel, ESLMessage eslMessage) {
-        UpdateVO updateVO = new UpdateVO();
-        websocketHandler.toAll(updateVO);
+//        UpdateVO updateVO = new UpdateVO();
+//        websocketHandler.toAll(updateVO);
     }
 
     public GatewayService getGatewayService() {

@@ -1,5 +1,6 @@
 package com.boe.esl.websocketServer;
 
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -7,10 +8,12 @@ import javax.annotation.PreDestroy;
 
 import com.boe.esl.model.*;
 import com.boe.esl.service.GatewayService;
+import com.boe.esl.service.UpdateService;
 import com.boe.esl.socket.struct.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import com.boe.esl.service.LabelService;
@@ -58,12 +61,15 @@ public class MessageEventHandler {
 	private GatewayService gatewayService;
 
 	@Autowired
+	private UpdateService updateService;
+
+	@Autowired
 	@Qualifier("serverHandler")
 	private ServerHandler serverHandler;
 
 	private Map<String, Timer> timerMap;
 
-	@Value("esl.network-timeout")
+	@Value("${esl.network-timeout}")
 	private int networkTimeout;//组网超时时间
 
 	@Autowired
@@ -120,17 +126,28 @@ public class MessageEventHandler {
 	}
 
 	@OnEvent(value = "sendNetwork")
-	public void onNetworkEvent(SocketIOClient client, AckRequest ackRequest, Map<String,List<String>> networkMap){
+	public void onNetworkEvent(SocketIOClient client, AckRequest ackRequest, List<LinkedHashMap<String,Object>> msgList){
 
 		log.info("处理组网事件");
-		if(networkMap != null){
-			networkMap.forEach((k,v) ->{
-				Gateway gateway = gatewayService.getGatewayByKey(k);
+		if(msgList != null){
+
+			msgList.forEach(msg ->{
+				NetworkMessage networkMessage = new NetworkMessage();
+
+				if(msg.get("gatewayMac") != null){
+					String mac = msg.get("gatewayMac").toString();
+					networkMessage.setGatewayMac(mac);
+				}
+				if(msg.get("labelIDList") != null){
+					List<String> idList = (List<String>)msg.get("labelIDList");
+					networkMessage.setLabelIDList(idList);
+				}
+				Gateway gateway = gatewayService.getGatewayByKey(networkMessage.getGatewayMac());
 				if(gateway == null){
 					client.sendEvent("sendNetwork","网关不存在");
 				}else{
 					List<Label> labelList = new ArrayList<>();
-					v.forEach(code ->{
+					networkMessage.getLabelIDList().forEach(code ->{
 						Label label = labelService.getLabelByCode(code);
 						if(label != null){
 							label.setGateway(gateway);
@@ -142,7 +159,7 @@ public class MessageEventHandler {
 					labelService.save(labelList);
 				}
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
-				SocketChannel ch = regChannelGroup.get(k);
+				SocketChannel ch = regChannelGroup.get(networkMessage.getGatewayMac());
 				ESLMessage networkMsg = new ESLMessage();
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
@@ -152,10 +169,15 @@ public class MessageEventHandler {
 				header.setLength((byte) content.length);
 				networkMsg.setContent(content);
 				networkMsg.setEslHeader(header);
-				ch.writeAndFlush(networkMsg);
+				if(ch != null){
+					ch.writeAndFlush(networkMsg);
+				}else{
+					log.error("没有注册的注册信息");
+				}
+
 				Timer timer = new Timer();//每个网关一个定时器
 				timer.schedule(new NetworkTimeTask(ch), networkTimeout);
-				timerMap.put(k,timer);
+				timerMap.put(networkMessage.getGatewayMac(),timer);
 			});
 		}
 
@@ -164,9 +186,15 @@ public class MessageEventHandler {
 	@OnEvent(value = "sendUpdate")
 	public void onUpdateEvent(SocketIOClient client, AckRequest ackRequest, UpdateVO updatevo) {
 		log.info("更新标签事件");
-		Label label = labelService.findById(updatevo.getLabelId());
+		Label label = labelService.getLabelByCode(updatevo.getLabelCode());
 		Gateway gateway = null;
 		if(label != null){
+			Update update = new Update();
+			update.setLabel(label);
+			update.setMaterialName(updatevo.getMaterialName());
+			update.setMaterialNum(updatevo.getMaterialNum());
+			update.setUpdateTime(new Timestamp(System.currentTimeMillis()));
+			updateService.save(update);
 			gateway = label.getGateway();
 			if(gateway != null){
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
@@ -174,11 +202,15 @@ public class MessageEventHandler {
 				ESLMessage controlMsg = new ESLMessage();
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
-				header.setType(MessageType.UPDATE);
-				controlMsg.setContent(ESLSocketUtils.convertUpdateToByte(updatevo).array());
-				header.setLength((byte) NettyConstant.REQ_UPDATE_LENGTH);
+				header.setType(MessageType.DISPLAY);
+				byte[] content = ESLSocketUtils.createUpdateContent(updatevo).array();
+				controlMsg.setContent(content);
+				header.setLength((byte) content.length);
 				controlMsg.setEslHeader(header);
-				ch.writeAndFlush(controlMsg);
+				if(ch != null){
+					ch.writeAndFlush(controlMsg);
+				}
+
 			}else {
 				client.sendEvent("sendControl","该标签没有入网");
 			}

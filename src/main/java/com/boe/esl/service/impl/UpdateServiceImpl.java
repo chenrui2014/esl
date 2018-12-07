@@ -102,4 +102,8 @@ public class UpdateServiceImpl extends BaseServiceImpl<Update, Long, UpdateVO> i
 		return this.updateDao;
 	}
 
+	@Override
+	public Update getLatestUpdateByLabelCode(String labelCode) {
+		return updateDao.findFirstByLabel_CodeOrderByUpdateTimeDesc(labelCode);
+	}
 }

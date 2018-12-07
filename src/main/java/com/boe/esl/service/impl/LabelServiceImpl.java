@@ -66,10 +66,13 @@ public class LabelServiceImpl extends BaseServiceImpl<Label, Long, LabelVO> impl
 		label.setName(labelVO.getName());
 
 		label.setStatus(labelVO.getStatus());
-		Gateway gateway = gatewayDao.findById(labelVO.getGatewayId()).orElse(null);
-		if(gateway != null) {
-			label.setGateway(gateway);
+		if(labelVO.getGatewayId() != null){
+			Gateway gateway = gatewayDao.findById(labelVO.getGatewayId()).orElse(null);
+			if(gateway != null) {
+				label.setGateway(gateway);
+			}
 		}
+
 		return label;
 	}
 

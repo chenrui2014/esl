@@ -17,7 +17,7 @@ public class UpdateVO implements BaseVO {
 	private String sid;
 	private String barCode;
 	private String materialName;
-	private String materialNum;
+	private Short materialNum;
 	private String customJson;
 	private Boolean isOk;
 }

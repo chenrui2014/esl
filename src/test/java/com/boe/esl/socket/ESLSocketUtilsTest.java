@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.boe.esl.vo.UpdateVO;
 import org.junit.Test;
 import org.springframework.boot.origin.SystemEnvironmentOrigin;
 
@@ -72,5 +73,22 @@ public class ESLSocketUtilsTest {
 		goods.setName("电脑");
 		ByteBuf buf =ESLSocketUtils.convertGoodsToByte(goods);
 		assertTrue(buf.readableBytes() == NettyConstant.REQ_INFO_LENGTH);
+	}
+
+	@Test
+	public void testCreateUpdateContent(){
+
+		UpdateVO updateVO = new UpdateVO();
+		updateVO.setSid("A901000005");
+		updateVO.setMaterialName("A仓库 香蕉");
+		updateVO.setMaterialNum((short)10);
+		ByteBuf buf = ESLSocketUtils.createUpdateContent(updateVO);
+		assertTrue(buf.readableBytes() < 255);
+	}
+
+	@Test
+	public void testShortToByteArray(){
+		byte[] shortByte = ESLSocketUtils.shortToByteArray((short)10);
+		assertTrue(shortByte[0] == 0x0A);
 	}
 }
