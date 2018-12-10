@@ -346,23 +346,23 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
      * @param eslMessage
      */
     private void control(SocketChannel channel, ESLMessage eslMessage) {
-        byte[] deviceTypeBytes = new byte[1];
-        System.arraycopy(eslMessage.getContent(), 0, deviceTypeBytes, 0, 1);
-
-        switch (deviceTypeBytes[0]) {
-            case 0x02:
-            case 0x03:
-            case 0x04:
-                byte[] deviceIDBytes = new byte[8];
-                System.arraycopy(eslMessage.getContent(), 1, deviceIDBytes, 0, 8);
-                String deviceID = null;
-                deviceID = new String(deviceIDBytes);
-                deviceID = deviceID.trim();
-                Label label =new Label();
-                label.setCode(deviceID);
-                websocketHandler.toAll(label);
-                break;
-        }
+//        byte[] deviceTypeBytes = new byte[1];
+//        System.arraycopy(eslMessage.getContent(), 0, deviceTypeBytes, 0, 1);
+//
+//        switch (deviceTypeBytes[0]) {
+//            case 0x02:
+//            case 0x03:
+//            case 0x04:
+//                byte[] deviceIDBytes = new byte[8];
+//                System.arraycopy(eslMessage.getContent(), 1, deviceIDBytes, 0, 8);
+//                String deviceID = null;
+//                deviceID = new String(deviceIDBytes);
+//                deviceID = deviceID.trim();
+//                Label label =new Label();
+//                label.setCode(deviceID);
+//                websocketHandler.toAll(label);
+//                break;
+//        }
     }
 
     /**
@@ -412,7 +412,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                         byte[] nameBytes = new byte[length-3];//丢弃0
                         byte[] shortBytes = new byte[2];
                         System.arraycopy(eslMessage.getContent(), 11, nameBytes, 0, nameBytes.length);
-                        System.arraycopy(eslMessage.getContent(), totalLength-2, nameBytes, 0, 2);
+                        System.arraycopy(eslMessage.getContent(), 11 + nameBytes.length + 1, shortBytes, 0, 2);
                         short mNum = ESLSocketUtils.byteArray2Short(shortBytes);
                         String mName ="";
                         try {

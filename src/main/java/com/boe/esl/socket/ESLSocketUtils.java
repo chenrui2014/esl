@@ -43,8 +43,8 @@ public class ESLSocketUtils {
 			position += 1;
 			System.arraycopy(shortToByteArray(updateVO.getMaterialNum()), 0, updateBytes, position, 2);
 			position += 2;
-			updateBytes[position]=0x00;
-			position +=1;
+//			updateBytes[position]=0x00;
+//			position +=1;
 		}catch (Exception e) {
 			log.error("字符编码转换错误", e.getMessage());
 		}
@@ -91,8 +91,8 @@ public class ESLSocketUtils {
 		try {
 			controlBytes[0] = controlMessage.getDeviceType();
 			position += 1;
-			System.arraycopy(controlMessage.getLabelCode().getBytes(), 0, controlBytes, position, controlMessage.getLabelCode().getBytes().length);
-			position += controlMessage.getLabelCode().getBytes().length;
+			System.arraycopy(deviceIdToByteArray(controlMessage.getLabelCode()), 0, controlBytes, position, 8);
+			position += 8;
 			controlBytes[position] = controlMessage.getOptType();
 			position += 1;
 
