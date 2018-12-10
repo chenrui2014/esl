@@ -3,6 +3,8 @@ package com.boe.esl.socket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.boe.esl.controller.ControlSender;
+import com.boe.esl.controller.StatusSender;
 import com.boe.esl.model.*;
 import com.boe.esl.service.*;
 import com.boe.esl.socket.struct.*;
@@ -38,6 +40,12 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
     @Autowired
     private MessageEventHandler websocketHandler;
+
+    @Autowired
+    private ControlSender controlSender;
+
+    @Autowired
+    private StatusSender statusSender;
 
     // 成功注册的channel
     private Map<String, SocketChannel> regChannelGroup = new ConcurrentHashMap<>();
@@ -274,6 +282,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                                             label.setStatus(LabelStatus.ON_LINE.getCode());//AP组网成功向CA发出新设备入网请求，CA将设备状态更新为在线
                                         }
                                         labelService.save(label);//同一网关可组网
+                                        controlSender.send(label);//写入消息队列
                                         List<Label> labelList = labelService.getLabelListByGateway(gateway1.getId());
                                         boolean isFinish=true;
                                         if(labelList != null && labelList.size() > 0){
@@ -406,6 +415,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                     String powerStr = power+"%";
                     label.setPower(powerStr);
                     labelService.save(label);
+                    statusSender.send(label);//将标签状态写入消息队列
                     int totalLength = eslMessage.getEslHeader().getLength();
                     int length = totalLength -11;
                     if(length > 3){

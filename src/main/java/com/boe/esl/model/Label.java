@@ -34,6 +34,7 @@ public class Label implements BaseModel<Long> {
 	private String mac;
 	private String code;
 	private String type;
+	private byte optType;
 	private Integer status;
     private String power;
 
