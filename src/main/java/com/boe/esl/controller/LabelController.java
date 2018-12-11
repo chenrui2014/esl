@@ -67,6 +67,8 @@ public class LabelController {
 
 	@Autowired
 	private WareHouseSender wareHouseSender;
+	@Autowired
+	private ControlSender controlSender;
 
 	@ApiVersion(1)
 	@GetMapping(value = "perpage")
@@ -254,5 +256,13 @@ public class LabelController {
 		} else {
 			//client.sendEvent("sendControl", "没有找到对应的标签");
 		}
+	}
+
+	@GetMapping(value = "/send")
+	public void send(){
+		//Label label = labelService.findById(id);
+		Label label = new Label();
+		label.setCode("adfsadf");
+		controlSender.send(label);
 	}
 }
