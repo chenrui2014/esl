@@ -92,23 +92,4 @@ public class ESLSocketUtilsTest {
 		byte[] shortByte = ESLSocketUtils.shortToByteArray((short)10);
 		assertTrue(shortByte[0] == 0x0A);
 	}
-
-	@Test
-	public void testcreateControlCOntent(){
-		ControlMessage msg = new ControlMessage();
-		msg.setDeviceType((byte)0x03);
-		msg.setOptType((byte)0x01);
-		byte[] code = new byte[8];
-		code[0]=0x00;
-		code[1]=0x01;
-		code[2]=0x02;
-		code[3]=0x03;
-		code[4]=0x04;
-		code[5]=0x05;
-		code[6]=0x06;
-		code[7]=0x07;
-		msg.setLabelCode("ffffffff");
-		ByteBuf buf = ESLSocketUtils.createControlContent(msg);
-		assertTrue(buf.array().length == 10);
-	}
 }
