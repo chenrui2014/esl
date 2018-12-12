@@ -259,6 +259,11 @@ public class ESLSocketUtils {
 		String value = "";
 		for (int i = 0; i < macBytes.length; i++) {
 			String sTemp = Integer.toHexString(0xFF & macBytes[i]).toUpperCase();
+
+			if(sTemp.length() < 2){
+				sTemp = "0" + sTemp;
+			}
+			
 			value = value + sTemp + ":";
 		}
 
@@ -266,10 +271,13 @@ public class ESLSocketUtils {
 		return value;
 	}
 
-	public static String ByteArrayToDeviceId(byte[] macBytes) {
+	public static String byteArrayToDeviceId(byte[] macBytes) {
 		String value = "";
 		for (int i = 0; i < macBytes.length; i++) {
 			String sTemp = Integer.toHexString(0xFF & macBytes[i]).toUpperCase();
+			if(sTemp.length() < 2){
+				sTemp = "0" + sTemp;
+			}
 			value = value + sTemp + ":";
 		}
 

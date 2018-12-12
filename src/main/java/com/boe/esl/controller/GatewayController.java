@@ -125,7 +125,7 @@ public class GatewayController {
 
 	@ApiVersion(1)
 	@PutMapping(value = "/network")
-	public void network(@RequestBody List<LinkedHashMap<String, Object>> msgList){
+	public RestResult network(@RequestBody List<LinkedHashMap<String, Object>> msgList){
 
 		if (msgList != null) {
 
@@ -141,7 +141,7 @@ public class GatewayController {
 					networkMessage.setLabelIDList(idList);
 				}
 				Gateway gateway = gatewayService.getGatewayByKey(networkMessage.getGatewayMac());
-				if (gateway == null) {
+				if (gateway != null) {
 					List<Label> labelList = new ArrayList<>();
 					networkMessage.getLabelIDList().forEach(code -> {
 						Label label = labelService.getLabelByCode(code);
@@ -179,5 +179,7 @@ public class GatewayController {
 				timerMap.put(networkMessage.getGatewayMac(), timer);
 			});
 		}
+
+		return RestResultGenerator.genSuccessResult();
 	}
 }

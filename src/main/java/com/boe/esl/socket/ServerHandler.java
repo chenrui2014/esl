@@ -265,7 +265,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 String labelID = null;
 //                labelID = new String(labelIDBytes);
 //                labelID = labelID.trim();
-                labelID = ESLSocketUtils.ByteArrayToMac(labelIDBytes);
+                labelID = ESLSocketUtils.byteArrayToDeviceId(labelIDBytes);
                 Label label = labelService.getLabelByCode(labelID);
                 if(label != null){
 
@@ -282,7 +282,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                                             label.setStatus(LabelStatus.ON_LINE.getCode());//AP组网成功向CA发出新设备入网请求，CA将设备状态更新为在线
                                         }
                                         labelService.save(label);//同一网关可组网
-                                        controlSender.send(label);//写入消息队列
+                                        controlSender.send(labelService.convertEntity(label));//写入消息队列
                                         List<Label> labelList = labelService.getLabelListByGateway(gateway1.getId());
                                         boolean isFinish=true;
                                         if(labelList != null && labelList.size() > 0){
@@ -393,7 +393,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 String deviceID = null;
 //                deviceID = new String(deviceIDBytes);
 //                deviceID = deviceID.trim();
-                deviceID = ESLSocketUtils.ByteArrayToDeviceId(deviceIDBytes);
+                deviceID = ESLSocketUtils.byteArrayToDeviceId(deviceIDBytes);
 //                Label label = new Label();
 //                label.setCode(deviceID);
                 Label label = labelService.getLabelByCode(deviceID);

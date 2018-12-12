@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/{version}/labels")
 @RestController
 @Slf4j
-@RabbitListener(queues = "control")
 public class LabelController {
 
 	@Autowired
@@ -116,17 +115,20 @@ public class LabelController {
 
 	@ApiVersion(1)
 	@PutMapping(value = "/{id}/display")
-	public void update(@PathVariable("id") long id, @RequestBody UpdateVO updatevo){
+	public RestResult update(@PathVariable("id") long id, @RequestBody UpdateVO updatevo){
 
 		Label label = labelService.findById(id);
 		Gateway gateway = null;
-		if (label != null) {
+		if (label != null && label.getStatus() != null && label.getStatus() == LabelStatus.ON_LINE.getCode()) {
 			Update update = new Update();
 			update.setLabel(label);
 			update.setMaterialName(updatevo.getMaterialName());
 			update.setMaterialNum(updatevo.getMaterialNum());
+			update.setSid(updatevo.getSid());
+			update.setBarCode(updatevo.getBarCode());
 			update.setUpdateTime(new Timestamp(System.currentTimeMillis()));
 			updateService.save(update);
+			UpdateVO updateVO = updateService.convertEntity(update);
 			gateway = label.getGateway();
 			if (gateway != null) {
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
@@ -135,7 +137,7 @@ public class LabelController {
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
 				header.setType(MessageType.DISPLAY);
-				byte[] content = ESLSocketUtils.createUpdateContent(updatevo).array();
+				byte[] content = ESLSocketUtils.createUpdateContent(updateVO).array();
 				controlMsg.setContent(content);
 				header.setLength((byte) content.length);
 				controlMsg.setEslHeader(header);
@@ -144,27 +146,31 @@ public class LabelController {
 					future.addListener(future1 -> {
 						if(future1.isSuccess()){
 							Update update1 = updateService.getLatestUpdateByLabelCode(label.getCode());
-							UpdateVO updateVO = updateService.convertEntity(update1);
-							updateSender.send(updateVO);
+							UpdateVO updateVO2 = updateService.convertEntity(update1);
+							updateSender.send(updateVO2);
 						}
 						//client.sendEvent("sendControl", "更新标签内容成功");
 					});
 				}
 
 			} else {
+                return RestResultGenerator.genErrorResult("标签没有组网");
 				//client.sendEvent("sendControl", "该标签没有入网");
 			}
 		} else {
+			return RestResultGenerator.genErrorResult("标签不存在或者不在线");
 			//client.sendEvent("sendControl", "没有找到对应的标签");
 		}
+
+		return RestResultGenerator.genSuccessResult();
 	}
 
 	@ApiVersion(1)
 	@PutMapping(value = "/{id}/control")
-	public void control(@PathVariable("id") long id, @RequestBody ControlMessage controlMessage){
+	public RestResult control(@PathVariable("id") long id, @RequestBody ControlMessage controlMessage){
 		Label label = labelService.findById(id);
 		Gateway gateway = null;
-		if (label != null) {
+		if (label != null && label.getStatus() != null && label.getStatus() == LabelStatus.ON_LINE.getCode()) {
 			gateway = label.getGateway();
 			if (gateway != null) {
 				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
@@ -173,6 +179,7 @@ public class LabelController {
 				ESLHeader header = new ESLHeader();
 				header.setCode(HeaderType.REQ);
 				header.setType(MessageType.CONTROL);
+				controlMessage.setLabelCode(label.getCode());
 				byte[] content = ESLSocketUtils.createControlContent(controlMessage).array();
 				header.setLength((byte) content.length);
 				controlMsg.setEslHeader(header);
@@ -192,25 +199,22 @@ public class LabelController {
 				}
 
 			} else {
+                return RestResultGenerator.genErrorResult("该标签没有入网");
 				//client.sendEvent("sendControl", "该标签没有入网");
 			}
 		} else {
+			return RestResultGenerator.genErrorResult("标签不存在或者不在线");
 			//client.sendEvent("sendControl", "没有找到对应的标签");
 		}
+
+		return RestResultGenerator.genSuccessResult();
 	}
 
 	@GetMapping(value = "/send")
 	public void send(){
 		//Label label = labelService.findById(id);
-		Label label = new Label();
-		label.setCode("adfsadf");
-		controlSender.send(label);
-	}
-
-	@RabbitHandler
-	public void process(Label label) {
-		log.info("接收消息："+label.getCode());
-		log.info("接收消息时间："+new Date());
-		System.out.println("设备ID:" + label.getCode());
+//		Label label = new Label();
+//		label.setCode("adfsadf");
+//		controlSender.send(label);
 	}
 }

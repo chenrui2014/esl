@@ -45,12 +45,12 @@ public class UpdateServiceImpl extends BaseServiceImpl<Update, Long, UpdateVO> i
 		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		String formattedDate = formatter.format(update.getUpdateTime());
 		updateVO.setUpdateTime(formattedDate);
-		update.setBarCode(updateVO.getBarCode());
-		update.setCustomJson(updateVO.getCustomJson());
-		update.setIsOk(updateVO.getIsOk());
-		update.setMaterialName(updateVO.getMaterialName());
-		update.setMaterialNum(updateVO.getMaterialNum());
-		update.setSid(updateVO.getSid());
+		updateVO.setBarCode(update.getBarCode());
+		updateVO.setCustomJson(update.getCustomJson());
+		updateVO.setIsOk(update.getIsOk());
+		updateVO.setMaterialName(update.getMaterialName());
+		updateVO.setMaterialNum(update.getMaterialNum());
+		updateVO.setSid(update.getSid());
 		return updateVO;
 	}
 
