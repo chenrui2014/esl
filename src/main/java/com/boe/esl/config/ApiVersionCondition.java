@@ -46,7 +46,7 @@ public class ApiVersionCondition implements RequestCondition<ApiVersionCondition
 		log.error(request.getPathInfo());
 		log.error(request.getContextPath());
 		log.error(request.getServletPath());
-		Matcher m = VERSION_PREFIX_PATTERN.matcher(request.getPathInfo());
+		Matcher m = VERSION_PREFIX_PATTERN.matcher(request.getServletPath());
         if(m.find()){
             Integer version = Integer.valueOf(m.group(1));
             if(version >= this.apiVersion) // 如果请求的版本号大于配置版本号， 则满足
