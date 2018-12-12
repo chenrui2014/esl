@@ -13,9 +13,10 @@ import com.boe.esl.socket.struct.ESLMessage;
 import com.boe.esl.socket.struct.HeaderType;
 import com.boe.esl.socket.struct.MessageType;
 import com.boe.esl.vo.UpdateVO;
-import com.boe.esl.websocketServer.NetworkTimeTask;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.socket.SocketChannel;
+import org.springframework.amqp.rabbit.annotation.RabbitHandler;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,13 +43,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/{version}/labels")
 @RestController
 @Slf4j
+@RabbitListener(queues = "control")
 public class LabelController {
 
 	@Autowired
 	private LabelService labelService;
-
-	@Autowired
-	private GatewayService gatewayService;
 
 	@Autowired
 	private UpdateService updateService;
@@ -113,64 +112,6 @@ public class LabelController {
 	public RestResult removeLabel(@PathVariable("id") Long id) {
 		labelService.del(id);
 		return RestResultGenerator.genSuccessResult();
-	}
-
-	@ApiVersion(1)
-	@PutMapping(value = "/{id}/network")
-	public void network(@PathVariable("id") long id, @RequestBody List<LinkedHashMap<String, Object>> msgList){
-
-		if (msgList != null) {
-
-			msgList.forEach(msg -> {
-				NetworkMessage networkMessage = new NetworkMessage();
-
-				if (msg.get("gatewayMac") != null) {
-					String mac = msg.get("gatewayMac").toString();
-					networkMessage.setGatewayMac(mac);
-				}
-				if (msg.get("labelIDList") != null) {
-					List<String> idList = (List<String>) msg.get("labelIDList");
-					networkMessage.setLabelIDList(idList);
-				}
-				Gateway gateway = gatewayService.getGatewayByKey(networkMessage.getGatewayMac());
-				if (gateway == null) {
-					List<Label> labelList = new ArrayList<>();
-					networkMessage.getLabelIDList().forEach(code -> {
-						Label label = labelService.getLabelByCode(code);
-						if (label != null) {
-							label.setGateway(gateway);
-							label.setStatus(LabelStatus.NETWORKING.getCode());
-							labelList.add(label);
-						}
-					});
-					//批量插入
-					labelService.save(labelList);
-				}
-				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
-				SocketChannel ch = regChannelGroup.get(networkMessage.getGatewayMac());
-				ESLMessage networkMsg = new ESLMessage();
-				ESLHeader header = new ESLHeader();
-				header.setCode(HeaderType.REQ);
-				header.setType(MessageType.NETWORKING);
-				byte[] content = new byte[1];
-				content[0] = 0x01;//开始组网
-				header.setLength((byte) content.length);
-				networkMsg.setContent(content);
-				networkMsg.setEslHeader(header);
-				if (ch != null) {
-					ChannelFuture future = ch.writeAndFlush(networkMsg);
-					future.addListener(future1 -> {
-
-					});
-				} else {
-					log.error("没有注册的注册信息");
-				}
-
-				Timer timer = new Timer();//每个网关一个定时器
-				timer.schedule(new NetworkTimeTask(ch), networkTimeout);
-				timerMap.put(networkMessage.getGatewayMac(), timer);
-			});
-		}
 	}
 
 	@ApiVersion(1)
@@ -264,5 +205,12 @@ public class LabelController {
 		Label label = new Label();
 		label.setCode("adfsadf");
 		controlSender.send(label);
+	}
+
+	@RabbitHandler
+	public void process(Label label) {
+		log.info("接收消息："+label.getCode());
+		log.info("接收消息时间："+new Date());
+		System.out.println("设备ID:" + label.getCode());
 	}
 }

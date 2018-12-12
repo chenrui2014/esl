@@ -1,14 +1,25 @@
 package com.boe.esl.controller;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.websocket.server.PathParam;
 
+import com.boe.esl.model.Label;
+import com.boe.esl.model.LabelStatus;
+import com.boe.esl.model.NetworkMessage;
+import com.boe.esl.service.LabelService;
 import com.boe.esl.socket.ServerHandler;
+import com.boe.esl.socket.struct.ESLHeader;
+import com.boe.esl.socket.struct.ESLMessage;
+import com.boe.esl.socket.struct.HeaderType;
+import com.boe.esl.socket.struct.MessageType;
+import com.boe.esl.websocketServer.NetworkTimeTask;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.socket.SocketChannel;
+import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +49,18 @@ public class GatewayController {
 
 	@Autowired
 	private GatewayService gatewayService;
+
+	@Autowired
+	private LabelService labelService;
+
+	@Autowired
+	@Qualifier("serverHandler")
+	private ServerHandler serverHandler;
+
+	private Map<String, Timer> timerMap = new HashMap<>();
+
+	@Value("${esl.network-timeout}")
+	private int networkTimeout;//组网超时时间
 
 //	private GraphqlService graphqlService;
 
@@ -98,5 +121,63 @@ public class GatewayController {
 	public RestResult removeGateway(@PathVariable("id") Long id) {
 		gatewayService.del(id);
 		return RestResultGenerator.genSuccessResult();
+	}
+
+	@ApiVersion(1)
+	@PutMapping(value = "/network")
+	public void network(@RequestBody List<LinkedHashMap<String, Object>> msgList){
+
+		if (msgList != null) {
+
+			msgList.forEach(msg -> {
+				NetworkMessage networkMessage = new NetworkMessage();
+
+				if (msg.get("gatewayMac") != null) {
+					String mac = msg.get("gatewayMac").toString();
+					networkMessage.setGatewayMac(mac);
+				}
+				if (msg.get("labelIDList") != null) {
+					List<String> idList = (List<String>) msg.get("labelIDList");
+					networkMessage.setLabelIDList(idList);
+				}
+				Gateway gateway = gatewayService.getGatewayByKey(networkMessage.getGatewayMac());
+				if (gateway == null) {
+					List<Label> labelList = new ArrayList<>();
+					networkMessage.getLabelIDList().forEach(code -> {
+						Label label = labelService.getLabelByCode(code);
+						if (label != null) {
+							label.setGateway(gateway);
+							label.setStatus(LabelStatus.NETWORKING.getCode());
+							labelList.add(label);
+						}
+					});
+					//批量插入
+					labelService.save(labelList);
+				}
+				Map<String, SocketChannel> regChannelGroup = serverHandler.getRegChannelGroup();
+				SocketChannel ch = regChannelGroup.get(networkMessage.getGatewayMac());
+				ESLMessage networkMsg = new ESLMessage();
+				ESLHeader header = new ESLHeader();
+				header.setCode(HeaderType.REQ);
+				header.setType(MessageType.NETWORKING);
+				byte[] content = new byte[1];
+				content[0] = 0x01;//开始组网
+				header.setLength((byte) content.length);
+				networkMsg.setContent(content);
+				networkMsg.setEslHeader(header);
+				if (ch != null) {
+					ChannelFuture future = ch.writeAndFlush(networkMsg);
+					future.addListener(future1 -> {
+						if(future1.isSuccess()) log.info("成功发起组网");
+					});
+				} else {
+					log.error("没有注册的注册信息");
+				}
+
+				Timer timer = new Timer();//每个网关一个定时器
+				timer.schedule(new NetworkTimeTask(ch), networkTimeout);
+				timerMap.put(networkMessage.getGatewayMac(), timer);
+			});
+		}
 	}
 }
