@@ -6,10 +6,10 @@ import lombok.ToString;
 public enum OptType {
 
     LIGHT_OFF((byte)0x00,"灯灭"),
-    LIGHT1_ON((byte)0x01,"灯灭"),
-    LIGHT2_ON((byte)0x02,"灯灭"),
-    LIGHT3_ON((byte)0x03,"灯灭"),
-    NO_CHANGE((byte)0xFF,"灯灭");
+    LIGHT1_ON((byte)0x01,"灯1亮"),
+    LIGHT2_ON((byte)0x02,"灯2亮"),
+    LIGHT3_ON((byte)0x03,"灯3亮"),
+    NO_CHANGE((byte)0xFF,"不变");
     private byte code;
     private String msg;
     OptType(byte code, String msg) {
